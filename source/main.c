@@ -1,5 +1,6 @@
 #include "utils/init.h"
 #include "utils/glutil.h"
+#include "config.h"
 
 #include <psp2/kernel/threadmgr.h>
 
@@ -12,10 +13,10 @@
 #include <falso_ndk/FalsoNDK.h>
 #endif
 
-int _newlib_heap_size_user = 256 * 1024 * 1024;
+int _newlib_heap_size_user = LOADER_NEWLIB_HEAP_SIZE;
 
 #ifdef USE_SCELIBC_IO
-int sceLibcHeapSize = 4 * 1024 * 1024;
+int sceLibcHeapSize = LOADER_SCELIBC_HEAP_SIZE;
 #endif
 
 so_module so_mod;

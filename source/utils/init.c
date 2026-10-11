@@ -17,6 +17,7 @@
 
 #include <reimpl/controls.h>
 #include "reimpl/futex.h"
+#include "config.h"
 
 #include <string.h>
 
@@ -35,6 +36,14 @@
 extern so_module so_mod;
 
 void soloader_init_all() {
+    l_notice("Alice Vita loader (so-loader for liblooking_glass.so), built " __DATE__ " " __TIME__);
+    l_notice("config: SO_PATH=%s heap=%u MiB stack cap=%u KiB default=%u KiB ui=%u KiB "
+             "vgl_threshold=%u MiB msaa=%d sdk=%d audio=%d cpus=%d",
+             SO_PATH, (unsigned)(LOADER_NEWLIB_HEAP_SIZE >> 20),
+             (unsigned)(LOADER_THREAD_STACK_CAP >> 10), (unsigned)(LOADER_THREAD_STACK_DEFAULT >> 10),
+             (unsigned)(LOADER_MAIN_STACK_SIZE >> 10), (unsigned)(LOADER_VGL_RAM_THRESHOLD >> 20),
+             LOADER_VGL_MSAA, LOADER_ANDROID_SDK, LOADER_AUDIO_ENABLED, LOADER_NPROCESSORS);
+
     // Rust std takes futex-based locks as soon as the .so runs.
     if (futex_init() < 0)
         fatal_error("Error: could not create the futex emulation objects.");

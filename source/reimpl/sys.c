@@ -9,6 +9,7 @@
 
 #include "reimpl/sys.h"
 #include "reimpl/futex.h"
+#include "config.h"
 
 #include <psp2/kernel/rng.h>
 
@@ -166,12 +167,6 @@ ssize_t getrandom_soloader(void *buf, size_t buflen, unsigned int flags) {
     }
     return (ssize_t)(buflen - left);
 }
-
-// sysconf(_SC_NPROCESSORS_ONLN/CONF). The Vita has 4 Cortex-A9 cores but only
-// 3 are available to applications (core 3 belongs to the system).
-#ifndef LOADER_NPROCESSORS
-#  define LOADER_NPROCESSORS 3
-#endif
 
 // Bionic sysconf() names (libc/include/bits/sysconf.h).
 #define BIONIC_SC_ARG_MAX            0x0000

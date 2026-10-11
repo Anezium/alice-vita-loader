@@ -1,3 +1,7 @@
+# Alice (Looking Glass) Vita loader.
+# Fork of v-atamanenko/soloader-boilerplate (MIT, see LICENSE). Changes for
+# liblooking_glass.so are listed in CHANGES.md.
+# Dependencies are git submodules: git submodule update --init --recursive
 cmake_minimum_required(VERSION 3.14)
 
 if (NOT DEFINED ENV{VITASDK} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
@@ -6,24 +10,48 @@ endif ()
 
 set(CMAKE_TOOLCHAIN_FILE "$ENV{VITASDK}/share/vita.toolchain.cmake" CACHE PATH "Toolchain file")
 
-project(so_loader C CXX)
+project(alice_loader C CXX)
 
 include("${VITASDK}/share/vita.cmake" REQUIRED)
 
 # Vita application configuration
-set(VITA_APP_NAME "so-loader")
-set(VITA_TITLEID "SLDR00000")
-set(VITA_VPKNAME "so_loader")
-set(VITA_VERSION "01.00")
-set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
+set(VITA_APP_NAME "Alice Looking Glass")
+set(VITA_TITLEID "ALICESOL1")
+set(VITA_VPKNAME "alice_soloader")
+set(VITA_VERSION "00.01")
+
+# ATTRIBUTE2=12 = "extended memory mode" (+~109 MiB for the application),
+# kept from the boilerplate and made switchable.
+option(LOADER_EXTENDED_MEM "Request the extended memory budget (ATTRIBUTE2=12)" ON)
+if (LOADER_EXTENDED_MEM)
+  set(VITA_MKSFOEX_FLAGS "-d ATTRIBUTE2=12")
+  add_definitions(-DLOADER_EXTENDED_MEM)
+else()
+  set(VITA_MKSFOEX_FLAGS "")
+endif()
+
+# Extra -D overrides for source/config.h (space separated), e.g.
+#   -DLOADER_EXTRA_DEFS="-DLOADER_THREAD_STACK_CAP=4194304 -DLOADER_AUDIO_ENABLED=1"
+set(LOADER_EXTRA_DEFS "" CACHE STRING "Extra -D definitions for source/config.h")
+if (LOADER_EXTRA_DEFS)
+  separate_arguments(_loader_extra_defs UNIX_COMMAND "${LOADER_EXTRA_DEFS}")
+  add_definitions(${_loader_extra_defs})
+endif()
+
+# Submodules (lib/so_util, lib/falso_jni, lib/vitagl)
+foreach(dep so_util/so_util.c falso_jni/FalsoJNI.c vitagl/Makefile)
+  if (NOT EXISTS ${CMAKE_SOURCE_DIR}/lib/${dep})
+    message(FATAL_ERROR "lib/${dep} is missing: run git submodule update --init --recursive")
+  endif()
+endforeach()
 
 # Optional: used for "send" and "dump" targets
 set(PSVITAIP "192.168.0.198" CACHE STRING "PSVita IP (for FTP access)")
 set(PARSECOREPATH "$ENV{PARSECOREPATH}" CACHE STRING "vita-parse-core main.py")
 
 # Game-specific definitions
-set(DATA_PATH "ux0:data/gamename/") # Path to data (with trailing /)
-set(SO_PATH "${DATA_PATH}main.so") # Path to .so
+set(DATA_PATH "ux0:data/alice/" CACHE STRING "Path to data (with trailing /)")
+set(SO_PATH "${DATA_PATH}liblooking_glass.so" CACHE STRING "Path to the Android .so")
 add_definitions(-DDATA_PATH="${DATA_PATH}" -DSO_PATH="${SO_PATH}")
 
 # Port type
@@ -73,11 +101,12 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   #add_definitions(-DDEBUG_PIPEFD=1)
   #add_definitions(-DDEBUG_CALLBACKS=1)
   # Space-separated flags passed to vitaGL
-  set(VITAGL_MAKE_FLAGS "SOFTFP_ABI=1 TEST=1 LOG_ERRORS=1")
+  set(VITAGL_MAKE_FLAGS_DEFAULT "SOFTFP_ABI=1 TEST=1 LOG_ERRORS=1")
 else()
   # Space-separated flags passed to vitaGL
-  set(VITAGL_MAKE_FLAGS "SOFTFP_ABI=1 NO_DEBUG=1")
+  set(VITAGL_MAKE_FLAGS_DEFAULT "SOFTFP_ABI=1 NO_DEBUG=1")
 endif()
+set(VITAGL_MAKE_FLAGS "${VITAGL_MAKE_FLAGS_DEFAULT}" CACHE STRING "Flags passed to vitaGL's make")
 
 # makes sincos, sincosf, etc. visible
 add_definitions(-D_GNU_SOURCE -D__POSIX_VISIBLE=999999)

@@ -9,15 +9,9 @@
 
 #include "reimpl/log.h"
 #include "utils/logger.h"
+#include "config.h"
 #include <psp2/kernel/clib.h>
 #include <stdlib.h>
-
-// Print __android_log_* messages of every priority, also in Release builds:
-// l_info/l_warn/l_debug compile to nothing there, which hid every log the
-// .so writes. Build with -DLOADER_ALOG_ALWAYS=0 for the old behaviour.
-#ifndef LOADER_ALOG_ALWAYS
-#  define LOADER_ALOG_ALWAYS 1
-#endif
 
 #if LOADER_ALOG_ALWAYS
 #define print_common \

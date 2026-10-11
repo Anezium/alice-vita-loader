@@ -12,6 +12,7 @@
 #include "utils/utils.h"
 #include "utils/dialog.h"
 #include "utils/logger.h"
+#include "config.h"
 
 #include <stdio.h>
 #include <malloc.h>
@@ -37,7 +38,19 @@ void gl_preload() {
 }
 
 void gl_init() {
-    vglInitExtended(0, 960, 544, 6 * 1024 * 1024, SCE_GXM_MULTISAMPLE_4X);
+    static int done = 0;
+    if (done) return;
+    done = 1;
+    static const SceGxmMultisampleMode msaa_modes[] = {
+        SCE_GXM_MULTISAMPLE_NONE, SCE_GXM_MULTISAMPLE_2X, SCE_GXM_MULTISAMPLE_4X
+    };
+    GLboolean ok = vglInitExtended(LOADER_VGL_LEGACY_POOL, LOADER_SCREEN_W, LOADER_SCREEN_H,
+                                   LOADER_VGL_RAM_THRESHOLD, msaa_modes[LOADER_VGL_MSAA % 3]);
+    l_notice("vglInitExtended(pool=%d, %dx%d, threshold=%u MiB, msaa=%d) = %d",
+             LOADER_VGL_LEGACY_POOL, LOADER_SCREEN_W, LOADER_SCREEN_H,
+             (unsigned)(LOADER_VGL_RAM_THRESHOLD >> 20), LOADER_VGL_MSAA, ok);
+    if (!ok)
+        fatal_error("Error: vitaGL initialisation failed (not enough memory?).");
 }
 
 void gl_swap() {

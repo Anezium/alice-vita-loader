@@ -18,17 +18,9 @@
 
 #include "utils/utils.h"
 #include "utils/logger.h"
+#include "config.h"
 
 #define PTHR_MAX_OBJECTS 1024
-
-// Upper bound for a stack requested through pthread_attr_setstacksize, and the
-// stack given to threads created without an explicit size. Override with -D.
-#ifndef LOADER_THREAD_STACK_CAP
-#  define LOADER_THREAD_STACK_CAP (8 * 1024 * 1024)
-#endif
-#ifndef LOADER_THREAD_STACK_DEFAULT
-#  define LOADER_THREAD_STACK_DEFAULT (1 * 1024 * 1024)
-#endif
 
 #define BIONIC_PTHREAD_COND_INITIALIZER              0
 #define BIONIC_PTHREAD_MUTEX_INITIALIZER             0
