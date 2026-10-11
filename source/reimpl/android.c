@@ -10,6 +10,8 @@
  *   - dl_iterate_phdr: used by the embedded libunwind (C++ exceptions in oboe)
  *     and by Rust backtraces after a panic. Served from the module so_util
  *     loaded (dl_unwind_find_exidx lives in dynlib.c).
+ *   - slCreateEngine for oboe (looked up with dlsym in "libOpenSLES.so"):
+ *     reports SL_RESULT_FEATURE_UNSUPPORTED unless LOADER_AUDIO_ENABLED.
  */
 
 #include "reimpl/android.h"
@@ -19,6 +21,7 @@
 #include <psp2/kernel/threadmgr.h>
 
 #include <so_util/so_util.h>
+#include <SLES/OpenSLES.h>
 
 #include "utils/logger.h"
 #include "config.h"
@@ -130,3 +133,24 @@ int dl_iterate_phdr_soloader(int (*callback)(void *info, size_t size, void *data
     l_debug("dl_iterate_phdr(%p): 1 module at %p", callback, (void *)so_mod.load_addr);
     return callback(&info, sizeof(info), data);
 }
+
+/* ------------------------------------------------------------- OpenSL ES */
+
+#if !LOADER_AUDIO_ENABLED
+SLresult slCreateEngine_soloader(SLObjectItf *pEngine, SLuint32 numOptions,
+                                 const SLEngineOption *pEngineOptions, SLuint32 numInterfaces,
+                                 const SLInterfaceID *pInterfaceIds, const SLboolean *pInterfaceRequired) {
+    l_stub("slCreateEngine: audio disabled for the first boot (LOADER_AUDIO_ENABLED=0), "
+           "SL_RESULT_FEATURE_UNSUPPORTED");
+    if (pEngine) *pEngine = NULL;
+    return SL_RESULT_FEATURE_UNSUPPORTED;
+}
+#else
+SLresult slCreateEngine_soloader(SLObjectItf *pEngine, SLuint32 numOptions,
+                                 const SLEngineOption *pEngineOptions, SLuint32 numInterfaces,
+                                 const SLInterfaceID *pInterfaceIds, const SLboolean *pInterfaceRequired) {
+    SLresult r = slCreateEngine(pEngine, numOptions, pEngineOptions, numInterfaces, pInterfaceIds, pInterfaceRequired);
+    l_notice("slCreateEngine (VitaSDK libOpenSLES) = 0x%x", (unsigned)r);
+    return r;
+}
+#endif

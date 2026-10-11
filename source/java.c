@@ -2,6 +2,8 @@
 #include <falso_jni/FalsoJNI_Impl.h>
 #include <falso_jni/FalsoJNI_Logger.h>
 
+#include "config.h"
+
 /*
  * JNI Methods
 */
@@ -27,10 +29,9 @@ MethodsVoid methodsVoid[] = {};
 // https://developer.android.com/reference/android/content/Context.html#WINDOW_SERVICE
 char WINDOW_SERVICE[] = "window";
 
-// System-wide constant that's often used to determine Android version
-// https://developer.android.com/reference/android/os/Build.VERSION.html#SDK_INT
-// Possible values: https://developer.android.com/reference/android/os/Build.VERSION_CODES
-const int SDK_INT = 19; // Android 4.4 / KitKat
+// android.os.Build.VERSION.SDK_INT, read by oboe-rs before enumerating devices.
+// 26 (Android 8.0) keeps oboe on OpenSL ES, see config.h.
+const int SDK_INT = LOADER_ANDROID_SDK;
 
 NameToFieldID nameToFieldId[] = {
 		{ 0, "WINDOW_SERVICE", FIELD_TYPE_OBJECT }, 

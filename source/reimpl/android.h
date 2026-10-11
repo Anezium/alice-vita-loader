@@ -9,6 +9,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <SLES/OpenSLES.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,6 +23,10 @@ int32_t ANativeWindow_getWidth_soloader(void *window);
 int32_t ANativeWindow_getHeight_soloader(void *window);
 
 int dl_iterate_phdr_soloader(int (*callback)(void *info, size_t size, void *data), void *data);
+
+SLresult slCreateEngine_soloader(SLObjectItf *pEngine, SLuint32 numOptions,
+                                 const SLEngineOption *pEngineOptions, SLuint32 numInterfaces,
+                                 const SLInterfaceID *pInterfaceIds, const SLboolean *pInterfaceRequired);
 
 #ifdef __cplusplus
 };

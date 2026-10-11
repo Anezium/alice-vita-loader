@@ -94,10 +94,36 @@ int sigaction(int signum, const struct sigaction * act, struct sigaction * oldac
     return 0;
 }
 
+// Android system properties actually read by the .so (oboe getSdkVersion(),
+// isAtLeastPreReleaseCodename(); Rust std reads none). Unknown names behave
+// like bionic: empty value, length 0, and are logged.
+static const struct { const char *name; const char *value; } system_properties[] = {
+    { "ro.build.version.sdk",          LOADER_STR(LOADER_ANDROID_SDK) },
+    { "ro.build.version.release",      "8.0.0" },
+    { "ro.build.version.codename",     "REL" },
+    { "ro.product.manufacturer",       "Sony" },
+    { "ro.product.brand",              "Sony" },
+    { "ro.product.model",              "PS Vita" },
+    { "ro.product.device",             "psvita" },
+    { "ro.hardware",                   "psvita" },
+    { "ro.product.cpu.abi",            "armeabi-v7a" },
+    { "ro.arch",                       "arm" },
+};
+
 int __system_property_get_soloader(const char *name, char *value) {
-    l_warn("__system_property_get(%s, %p): not implemented", name, value);
-    strncpy(value, "psvita", 7);
-    return 7;
+    if (!name || !value)
+        return 0;
+    for (size_t i = 0; i < sizeof(system_properties) / sizeof(system_properties[0]); i++) {
+        if (strcmp(name, system_properties[i].name) == 0) {
+            strncpy(value, system_properties[i].value, 92 /* PROP_VALUE_MAX */);
+            value[91] = 0;
+            l_notice("__system_property_get(\"%s\") = \"%s\"", name, value);
+            return (int)strlen(value);
+        }
+    }
+    l_stub("__system_property_get(\"%s\"): unknown property, returning \"\"", name);
+    value[0] = 0;
+    return 0;
 }
 
 void assert2(const char* f, int l, const char* func, const char* msg) {

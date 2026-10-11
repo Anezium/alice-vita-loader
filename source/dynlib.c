@@ -844,7 +844,8 @@ so_default_dynlib default_dynlib[] = {
         { "SL_IID_VOLUME", (uintptr_t)&SL_IID_VOLUME },
         { "SL_IID_RECORD", (uintptr_t)&SL_IID_RECORD }, // new import (oboe input path)
         { "SL_IID_ANDROIDCONFIGURATION", (uintptr_t)&SL_IID_ANDROIDCONFIGURATION }, // new import
-        { "slCreateEngine", (uintptr_t)&slCreateEngine },
+        // oboe finds slCreateEngine with dlsym(dlopen("libOpenSLES.so")); see reimpl/android.c
+        { "slCreateEngine", (uintptr_t)&slCreateEngine_soloader },
 
 
         // Pthread
