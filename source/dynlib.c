@@ -137,6 +137,7 @@ void *dlsym_soloader(void * handle, const char * symbol);
 void *dlopen_soloader(const char * filename, int flags);
 int dlclose_soloader(void * handle);
 char *dlerror_soloader(void);
+uintptr_t dl_unwind_find_exidx_soloader(uintptr_t pc, int *pcount);
 
 so_default_dynlib default_dynlib[] = {
         // Common C/C++ internals
@@ -221,8 +222,8 @@ so_default_dynlib default_dynlib[] = {
         { "__stack_chk_guard", (uintptr_t)&__stack_chk_guard },
         { "__swbuf", (uintptr_t)&__swbuf },
         { "__system_property_get", (uintptr_t)&__system_property_get_soloader },
-        { "__assert2", (uintptr_t)&ret0 }, // TODO: stub/impl
-        { "dl_unwind_find_exidx", (uintptr_t)&ret0 }, // TODO: stub/impl
+        { "__assert2", (uintptr_t)&assert2 }, // logs and aborts (was ret0)
+        { "dl_unwind_find_exidx", (uintptr_t)&dl_unwind_find_exidx_soloader }, // was ret0
 
 
         // ctype
@@ -1186,6 +1187,24 @@ void *dlsym_soloader(void * handle, const char * symbol) {
         dl_last_error = "undefined symbol";
     }
     return p;
+}
+
+/*
+ * dl_unwind_find_exidx: the ARM EHABI unwinder embedded in the .so (libunwind,
+ * libgcc) asks for the .ARM.exidx table covering a pc. Returning 0 meant no
+ * unwind tables at all: C++ exceptions could not be caught and backtraces
+ * were empty.
+ */
+uintptr_t dl_unwind_find_exidx_soloader(uintptr_t pc, int *pcount) {
+    uintptr_t lo = so_mod.load_addr;
+    uintptr_t hi = so_mod.text_base + so_mod.text_size;
+    if (pc >= lo && pc < hi && so_mod.exidx_base) {
+        if (pcount) *pcount = (int)(so_mod.exidx_size / 8);
+        return so_mod.exidx_base;
+    }
+    l_debug("dl_unwind_find_exidx(%p): pc outside the .so", (void *)pc);
+    if (pcount) *pcount = 0;
+    return 0;
 }
 
 /*

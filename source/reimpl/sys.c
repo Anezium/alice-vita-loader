@@ -98,6 +98,9 @@ int __system_property_get_soloader(const char *name, char *value) {
 
 void assert2(const char* f, int l, const char* func, const char* msg) {
     l_fatal("[%s:%i][%s] Assertion failed: %s", f, l, func, msg);
+    // bionic __assert2 is noreturn; returning into the .so would continue on
+    // a broken invariant.
+    abort();
 }
 
 // ARM EABI syscall numbers that Rust std issues through syscall().
