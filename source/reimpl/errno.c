@@ -111,16 +111,36 @@ static newlib_errno_to_bionic_errno errno_translation[] = {
 	{ EOWNERDEAD, EOWNERDEAD_BIONIC, "Owner died" },
 };
 
-int * __errno_soloader(void) {
-	int e = errno;
+/*
+ * Returning a pointer into the translation table meant that any write through
+ * __errno() corrupted the table for the rest of the run (Rust std does
+ * `*__errno() = 0` before readdir() to tell "end of directory" from "error").
+ * Each thread now owns a bionic errno slot:
+ *   - a pending newlib errno (non-zero) is translated into the slot and
+ *     consumed (newlib errno reset to 0), so a value is never translated twice;
+ *   - writes by the .so go to the slot only and survive until the next newlib
+ *     error, which is POSIX errno semantics as seen from the .so.
+ * Loader code that wants to report an error to the .so sets newlib errno
+ * (ENOSYS, ETIMEDOUT...) and lets this function translate it.
+ */
+static __thread int bionic_errno_slot = 0;
 
+static int errno_newlib_to_bionic(int e) {
 	for (int i = 0; i < sizeof(errno_translation) / sizeof(errno_translation[0]); ++i) {
 		if (e == errno_translation[i].errno_newlib)
-			return (int *) &errno_translation[i].errno_bionic;
+			return errno_translation[i].errno_bionic;
 	}
+	l_error("Unexpected newlib errno %i, reporting EIO to the .so", e);
+	return EIO_BIONIC;
+}
 
-	l_error("Unexpected newlib errno %i, will return 0 instead of translation", e);
-	return (int *) &errno_translation[0].errno_bionic;
+int * __errno_soloader(void) {
+	int e = errno;
+	if (e != 0) {
+		bionic_errno_slot = errno_newlib_to_bionic(e);
+		errno = 0;
+	}
+	return &bionic_errno_slot;
 }
 
 char * strerror_soloader(int error_number) {
