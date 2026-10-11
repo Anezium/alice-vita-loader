@@ -21,6 +21,15 @@
 
 #define PTHR_MAX_OBJECTS 1024
 
+// Upper bound for a stack requested through pthread_attr_setstacksize, and the
+// stack given to threads created without an explicit size. Override with -D.
+#ifndef LOADER_THREAD_STACK_CAP
+#  define LOADER_THREAD_STACK_CAP (8 * 1024 * 1024)
+#endif
+#ifndef LOADER_THREAD_STACK_DEFAULT
+#  define LOADER_THREAD_STACK_DEFAULT (1 * 1024 * 1024)
+#endif
+
 #define BIONIC_PTHREAD_COND_INITIALIZER              0
 #define BIONIC_PTHREAD_MUTEX_INITIALIZER             0
 #define BIONIC_PTHREAD_RECURSIVE_MUTEX_INITIALIZER   0x4000
@@ -101,6 +110,7 @@ int forgetObject(const void * mut) {
 PTHR_INLINE int _attr_t_static_init(pthread_attr_t_bionic * attr) {
     if (attr->magic != 0x42424242) {
         attr->magic = 0x42424242;
+        attr->stack_size = 0; // 0 = not set by the .so
         attr->real_ptr = malloc(sizeof(pthread_attr_t));
         return pthread_attr_init(attr->real_ptr);
     }
@@ -169,19 +179,40 @@ PTHR_INLINE int _cond_t_static_init(pthread_cond_t_bionic * cond, const pthread_
 
 int pthread_create_soloader(pthread_t *thread, const pthread_attr_t_bionic *attr, void *(*start)(void *), void *param) {
     int ret;
+    size_t requested = 0;
+    pthread_attr_t local;
+    pthread_attr_t *real;
 
     if (!attr) {
-        pthread_attr_t a;
-        pthread_attr_init(&a);
-        pthread_attr_setstacksize(&a, 512 * 1024);
-        ret = pthread_create(thread, &a, start, param);
-        pthread_attr_destroy(&a);
-    } else{
+        pthread_attr_init(&local);
+        real = &local;
+    } else {
         _attr_t_static_init((pthread_attr_t_bionic *) attr);
-        pthread_attr_setstacksize(attr->real_ptr, 512 * 1024);
-        ret = pthread_create(thread, attr->real_ptr, start, param);
+        real = attr->real_ptr;
+        requested = attr->stack_size;
     }
 
+    // Honour the requested stack (Rust std asks 2 MiB by default, some render
+    // threads 16 MiB), cap it to LOADER_THREAD_STACK_CAP, and use
+    // LOADER_THREAD_STACK_DEFAULT when nothing was requested.
+    size_t stack = requested ? requested : LOADER_THREAD_STACK_DEFAULT;
+    if (stack > LOADER_THREAD_STACK_CAP) {
+        l_info("pthread_create(start=%p): stack %u KiB requested, capped to %u KiB (LOADER_THREAD_STACK_CAP)",
+               start, (unsigned)(stack / 1024), (unsigned)(LOADER_THREAD_STACK_CAP / 1024));
+        stack = LOADER_THREAD_STACK_CAP;
+    }
+    stack = (stack + 4095) & ~(size_t)4095;
+    pthread_attr_setstacksize(real, stack);
+
+    ret = pthread_create(thread, real, start, param);
+    if (ret != 0)
+        l_error("pthread_create(start=%p, stack=%u KiB) failed: %d", start, (unsigned)(stack / 1024), ret);
+    else
+        l_info("pthread_create(start=%p, stack=%u KiB%s) = thread 0x%x", start,
+               (unsigned)(stack / 1024), requested ? "" : ", default", (unsigned)*thread);
+
+    if (!attr)
+        pthread_attr_destroy(&local);
     return ret;
 }
 
@@ -344,9 +375,11 @@ int pthread_attr_setdetachstate_soloader(pthread_attr_t_bionic *attr, int state)
 }
 
 int pthread_attr_setstacksize_soloader(pthread_attr_t_bionic *attr, size_t stacksize) {
-    if (!attr) return -1;
+    if (!attr) return 22; // EINVAL (bionic)
     _attr_t_static_init(attr);
-    return pthread_attr_setstacksize(attr->real_ptr, stacksize);
+    // Remember the request; the cap is applied in pthread_create_soloader.
+    attr->stack_size = stacksize;
+    return 0;
 }
 
 int pthread_setschedparam_soloader(pthread_t thread, int policy,
