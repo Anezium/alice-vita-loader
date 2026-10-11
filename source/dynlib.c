@@ -993,7 +993,7 @@ so_default_dynlib default_dynlib[] = {
         { "getpagesize", (uintptr_t)&getpagesize },
         { "getpid", (uintptr_t)&getpid },
         { "sbrk", (uintptr_t)&sbrk },
-        { "syscall", (uintptr_t)&syscall },
+        { "syscall", (uintptr_t)&syscall_soloader }, // futex, getrandom
         { "sysconf", (uintptr_t)&sysconf_soloader },
         { "getrandom", (uintptr_t)&getrandom_soloader }, // weak, API 28
         { "system", (uintptr_t)&system },

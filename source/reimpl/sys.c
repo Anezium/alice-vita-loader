@@ -8,6 +8,7 @@
  */
 
 #include "reimpl/sys.h"
+#include "reimpl/futex.h"
 
 #include <psp2/kernel/rng.h>
 
@@ -99,8 +100,45 @@ void assert2(const char* f, int l, const char* func, const char* msg) {
     l_fatal("[%s:%i][%s] Assertion failed: %s", f, l, func, msg);
 }
 
-void syscall(int c) {
-    l_warn("syscall(%i): not implemented", c);
+// ARM EABI syscall numbers that Rust std issues through syscall().
+#define SYS_GETTID_ARM          224
+#define SYS_FUTEX_ARM           240
+#define SYS_SPLICE_ARM          340
+#define SYS_GETRANDOM_ARM       384
+#define SYS_COPY_FILE_RANGE_ARM 391
+#define SYS_FUTEX_TIME64_ARM    422
+
+// syscall(long number, ...): ARM AAPCS passes variadic integer arguments
+// exactly like fixed ones (r0-r3, then stack), so a fixed 7-argument
+// definition reads them correctly; extra slots are just unused stack words.
+long syscall_soloader(long n, long a1, long a2, long a3, long a4, long a5, long a6) {
+    switch (n) {
+        case SYS_FUTEX_ARM:
+            return futex_syscall(0, (uint32_t *)a1, (int)a2, (uint32_t)a3,
+                                 (const void *)a4, (uint32_t *)a5, (uint32_t)a6);
+        case SYS_FUTEX_TIME64_ARM:
+            return futex_syscall(1, (uint32_t *)a1, (int)a2, (uint32_t)a3,
+                                 (const void *)a4, (uint32_t *)a5, (uint32_t)a6);
+        case SYS_GETRANDOM_ARM:
+            return getrandom_soloader((void *)a1, (size_t)a2, (unsigned int)a3);
+        case SYS_GETTID_ARM:
+            return gettid_soloader();
+        case SYS_COPY_FILE_RANGE_ARM:
+        case SYS_SPLICE_ARM:
+            // std::io::copy probes these and falls back to read/write on ENOSYS.
+            l_stub_once("syscall(%ld) (copy_file_range/splice): ENOSYS, std falls back to read/write", n);
+            errno = ENOSYS;
+            return -1;
+        default:
+            l_stub("syscall(%ld, 0x%lx, 0x%lx, 0x%lx, ...) from %p: not emulated, ENOSYS",
+                   n, a1, a2, a3, __builtin_return_address(0));
+            errno = ENOSYS;
+            return -1;
+    }
+}
+
+int gettid_soloader(void) {
+    return sceKernelGetThreadId();
 }
 
 // getrandom(2) (bionic API 28, weak import used by Rust std's HashMap seed).

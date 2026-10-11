@@ -100,6 +100,7 @@ set(SOURCES
     source/patch.c
     source/reimpl/bits/_ctype.c
     source/reimpl/errno.c
+    source/reimpl/futex.c
     source/reimpl/io.c
     source/reimpl/log.c
     source/reimpl/mem.c

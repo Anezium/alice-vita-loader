@@ -16,6 +16,7 @@
 #include "utils/settings.h"
 
 #include <reimpl/controls.h>
+#include "reimpl/futex.h"
 
 #include <string.h>
 
@@ -34,6 +35,10 @@
 extern so_module so_mod;
 
 void soloader_init_all() {
+    // Rust std takes futex-based locks as soon as the .so runs.
+    if (futex_init() < 0)
+        fatal_error("Error: could not create the futex emulation objects.");
+
 	// Launch `app0:configurator.bin` on `-config` init param
     sceAppUtilInit(&(SceAppUtilInitParam){}, &(SceAppUtilBootParam){});
     SceAppUtilAppEventParam eventParam;

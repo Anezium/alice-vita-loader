@@ -35,7 +35,9 @@ int __system_property_get_soloader(const char *name, char *value);
 
 void assert2(const char *f, int l, const char *func, const char *msg);
 
-void syscall(int c);
+long syscall_soloader(long n, long a1, long a2, long a3, long a4, long a5, long a6);
+
+int gettid_soloader(void);
 
 ssize_t getrandom_soloader(void *buf, size_t buflen, unsigned int flags);
 
