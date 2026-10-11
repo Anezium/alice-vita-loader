@@ -20,6 +20,8 @@ extern "C" {
 #endif
 
 #include <sys/time.h>
+#include <sys/types.h>
+#include <stddef.h>
 
 #define PAGE_SIZE 4096
 
@@ -34,6 +36,8 @@ int __system_property_get_soloader(const char *name, char *value);
 void assert2(const char *f, int l, const char *func, const char *msg);
 
 void syscall(int c);
+
+ssize_t getrandom_soloader(void *buf, size_t buflen, unsigned int flags);
 
 long sysconf_soloader(int name);
 

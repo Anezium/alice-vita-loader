@@ -9,6 +9,8 @@
 
 #include "reimpl/sys.h"
 
+#include <psp2/kernel/rng.h>
+
 #include <sys/errno.h>
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/kernel/clib.h>
@@ -99,6 +101,29 @@ void assert2(const char* f, int l, const char* func, const char* msg) {
 
 void syscall(int c) {
     l_warn("syscall(%i): not implemented", c);
+}
+
+// getrandom(2) (bionic API 28, weak import used by Rust std's HashMap seed).
+ssize_t getrandom_soloader(void *buf, size_t buflen, unsigned int flags) {
+    uint8_t *p = (uint8_t *)buf;
+    size_t left = buflen;
+    (void)flags; // GRND_NONBLOCK / GRND_RANDOM: the Vita RNG never blocks
+    while (left > 0) {
+        // sceKernelGetRandomNumber accepts at most 64 bytes per call.
+        size_t chunk = left > 64 ? 64 : left;
+        int ret = sceKernelGetRandomNumber(p, chunk);
+        if (ret < 0) {
+            l_error("getrandom: sceKernelGetRandomNumber(%u) failed: 0x%08x", (unsigned)chunk, ret);
+            if (left == buflen) {
+                errno = EIO;
+                return -1;
+            }
+            break;
+        }
+        p += chunk;
+        left -= chunk;
+    }
+    return (ssize_t)(buflen - left);
 }
 
 // sysconf(_SC_NPROCESSORS_ONLN/CONF). The Vita has 4 Cortex-A9 cores but only

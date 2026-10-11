@@ -993,6 +993,7 @@ so_default_dynlib default_dynlib[] = {
         { "sbrk", (uintptr_t)&sbrk },
         { "syscall", (uintptr_t)&syscall },
         { "sysconf", (uintptr_t)&sysconf_soloader },
+        { "getrandom", (uintptr_t)&getrandom_soloader }, // weak, API 28
         { "system", (uintptr_t)&system },
         { "waitpid", (uintptr_t)&ret0 },
 
