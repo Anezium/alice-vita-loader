@@ -96,16 +96,18 @@ void soloader_init_all() {
 
         char *kubridge_hash = kubridge_path ? file_sha1sum(kubridge_path) : NULL;
         if (!kubridge_hash) {
-            l_fatal("kubridge.skprx not found in ux0:/tai or ur0:/tai.");
-            fatal_error("Error: kubridge.skprx is not in ux0:/tai or ur0:/tai.");
-        }
-        l_notice("kubridge hash: %s (%s)", kubridge_hash, kubridge_path);
-        if (strcmp(kubridge_hash, "E033D76A90C9B8F2D496735C2692AFD8C3ED32FE") == 0) {
+            /* The module is loaded (checked above) but its file is somewhere else, e.g. a
+             * plugins/ subfolder. Not being able to read it is not a reason to stop. */
+            l_warn("kubridge.skprx not found in ux0:/tai or ur0:/tai: version not verified.");
+        } else {
+            l_notice("kubridge hash: %s (%s)", kubridge_hash, kubridge_path);
+            if (strcmp(kubridge_hash, "E033D76A90C9B8F2D496735C2692AFD8C3ED32FE") == 0) {
+                free(kubridge_hash);
+                l_fatal("kubridge too old: kuKernelMemProtect missing, install bythos14 kubridge v0.3.1 hotfix");
+                fatal_error("kubridge too old: kuKernelMemProtect missing, install bythos14 kubridge v0.3.1 hotfix");
+            }
             free(kubridge_hash);
-            l_fatal("kubridge too old: kuKernelMemProtect missing, install bythos14 kubridge v0.3.1 hotfix");
-            fatal_error("kubridge too old: kuKernelMemProtect missing, install bythos14 kubridge v0.3.1 hotfix");
         }
-        free(kubridge_hash);
     }
     l_notice("kubridge check passed.");
 
