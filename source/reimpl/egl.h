@@ -58,6 +58,11 @@ EGLBoolean alice_eglWaitNative(EGLint engine);
 void *alice_eglGetProcAddress(const char *procname);
 
 void alice_glBlendColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+void alice_glDrawBuffers(GLsizei n, const GLenum *bufs);
+void alice_glRenderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum internalformat,
+                                            GLsizei width, GLsizei height);
+void alice_glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride,
+                                  const void *pointer);
 void alice_glDetachShader(GLuint program, GLuint shader);
 void alice_glTexParameterfv(GLenum target, GLenum pname, const GLfloat *params);
 

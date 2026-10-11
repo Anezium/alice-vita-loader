@@ -342,11 +342,38 @@ void *alice_eglGetProcAddress(const char *procname) {
 }
 
 /* ------------------------------------------------------------------------ */
-/* GLES2 entry points miniquad looks up that vitaGL does not provide.       */
+/* GL entry points miniquad looks up that vitaGL does not provide.          */
+/* Behaviour matches Anezium/miniquad branch vita-0.4.8,                    */
+/* src/native/vita/gl_loader.rs. Each shim logs once on the first call.     */
+/* Pure GLES3 (glTexImage3D, glClearBuffer*, glFramebufferTextureLayer,     */
+/* glCompressedTexImage3D, glTexSubImage3D, glGetQueryObjectui64v) stays    */
+/* out of the symbol table, so eglGetProcAddress / dlsym keep returning     */
+/* NULL for them.                                                           */
 
 void alice_glBlendColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a) {
     l_stub_once("glBlendColor(%f, %f, %f, %f): no constant blend colour in vitaGL, ignored (logged once)",
                 r, g, b, a);
+}
+
+void alice_glDrawBuffers(GLsizei n, const GLenum *bufs) {
+    (void)bufs;
+    /* vitaGL has a single colour attachment: nothing to select. */
+    l_stub_once("glDrawBuffers(%d): single colour attachment in vitaGL, ignored (logged once)", (int)n);
+}
+
+void alice_glRenderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum internalformat,
+                                            GLsizei width, GLsizei height) {
+    l_stub_once("glRenderbufferStorageMultisample(samples=%d): no MSAA in vitaGL, "
+                "using glRenderbufferStorage (logged once)", (int)samples);
+    glRenderbufferStorage(target, internalformat, width, height);
+}
+
+void alice_glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride,
+                                  const void *pointer) {
+    /* GLES2 has no integer attributes. normalized = GL_FALSE converts them to floats. */
+    l_stub_once("glVertexAttribIPointer(%u): no integer attributes in GLES2, "
+                "using glVertexAttribPointer normalized=false (logged once)", index);
+    glVertexAttribPointer(index, size, type, GL_FALSE, stride, pointer);
 }
 
 void alice_glDetachShader(GLuint program, GLuint shader) {

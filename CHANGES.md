@@ -167,11 +167,28 @@ scalaires).
 vitaGL implémente ces fonctions : les **13** noms GLES3 que vitaGL fournit sont servis (`glBindVertexArray`,
 `glGenVertexArrays`, `glDeleteVertexArrays`, `glDrawElementsInstanced`, `glDrawArraysInstanced`,
 `glVertexAttribDivisor`, `glBlitFramebuffer`, `glReadBuffer`, `glGetStringi`, `glGenQueries`, `glDeleteQueries`,
-`glBeginQuery`, `glEndQuery`). Les **10** autres restent NULL : `glClearBuffer{fi,fv,uiv}`, `glCompressedTexImage3D`,
+`glBeginQuery`, `glEndQuery`). Les **10** autres étaient laissés NULL : `glClearBuffer{fi,fv,uiv}`, `glCompressedTexImage3D`,
 `glTexImage3D`, `glTexSubImage3D`, `glFramebufferTextureLayer`, `glRenderbufferStorageMultisample` (cibles MSAA),
 `glDrawBuffers` (MRT > 1 seulement), `glVertexAttribIPointer` (jamais pris : macroquad garde
 `gl_pass_as_float = true`). `glGetString(GL_VERSION)` de vitaGL vaut `"OpenGL ES 2.0 VitaGL"`, donc miniquad se
 met en mode GL2 (pas d'instancing, GLSL 100). Les 64 `AAudio*` restent NULL (et `dlopen("libaaudio.so")` échoue).
+
+Après START GAME, miniquad 0.4.8 de la voie Android fait `Option::unwrap()` dans `src/native/gl.rs`
+sur la première fonction dont `eglGetProcAddress` a rendu NULL.
+Le backend natif (`Anezium/miniquad`, branche `vita-0.4.8`, `src/native/vita/gl_loader.rs`) remplace quatre noms
+absents de vitaGL et arrive au menu. Les mêmes remplaçants sont dans `reimpl/egl.c`, enregistrés dans
+`default_dynlib[]`, donc servis par `dlsym` et par `eglGetProcAddress` :
+
+| Nom | Comportement | Log |
+|---|---|---|
+| `glDrawBuffers` | no-op (un seul attachement couleur) | une fois, au premier appel |
+| `glBlendColor` | no-op (déjà en place avant ce correctif) | une fois, au premier appel |
+| `glRenderbufferStorageMultisample` | `glRenderbufferStorage`, samples ignoré | une fois, au premier appel |
+| `glVertexAttribIPointer` | `glVertexAttribPointer` avec `normalized = GL_FALSE` | une fois, au premier appel |
+
+Restent NULL, non inventés : `glTexImage3D`, `glClearBuffer{fi,fv,uiv}`, `glFramebufferTextureLayer`,
+`glCompressedTexImage3D`, `glTexSubImage3D`, `glGetQueryObjectui64v`. `tools/check_symbols.py` classe les
+quatre ci-dessus `shim` et ces noms `absent`.
 
 Correction de l'inventaire (SYMBOLS.md / JALON1.md piège 9) : le patch du packager remplace
 `EGL_SAMPLES, sample_count` par `0x3040, 4`, c'est-à-dire **`EGL_RENDERABLE_TYPE = EGL_OPENGL_ES2_BIT`**, pas

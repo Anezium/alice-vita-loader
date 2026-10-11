@@ -650,6 +650,7 @@ so_default_dynlib default_dynlib[] = {
         { "glDisableClientState", (uintptr_t)&glDisableClientState },
         { "glDisableVertexAttribArray", (uintptr_t)&glDisableVertexAttribArray },
         { "glDrawArrays", (uintptr_t)&glDrawArrays },
+        { "glDrawBuffers", (uintptr_t)&alice_glDrawBuffers }, // shim, no-op
         { "glDrawElements", (uintptr_t)&glDrawElements },
         { "glDrawTexfOES", (uintptr_t)&ret0 },
         { "glDrawTexfvOES", (uintptr_t)&ret0 },
@@ -775,6 +776,7 @@ so_default_dynlib default_dynlib[] = {
         { "glQueryMatrixxOES", (uintptr_t)&ret0 },
         { "glReadPixels", (uintptr_t)&glReadPixels },
         { "glRenderbufferStorage", (uintptr_t)&glRenderbufferStorage },
+        { "glRenderbufferStorageMultisample", (uintptr_t)&alice_glRenderbufferStorageMultisample }, // shim -> glRenderbufferStorage
         { "glRenderbufferStorageOES", (uintptr_t)&glRenderbufferStorage },
         { "glRotatef", (uintptr_t)&glRotatef },
         { "glRotatex", (uintptr_t)&glRotatex },
@@ -839,6 +841,7 @@ so_default_dynlib default_dynlib[] = {
         { "glValidateProgram", (uintptr_t)&ret0 },
         { "glVertexAttrib4f", (uintptr_t)&glVertexAttrib4f },
         { "glVertexAttrib4fv", (uintptr_t)&glVertexAttrib4fv },
+        { "glVertexAttribIPointer", (uintptr_t)&alice_glVertexAttribIPointer }, // shim -> glVertexAttribPointer
         { "glVertexAttribPointer", (uintptr_t)&glVertexAttribPointer },
         { "glVertexPointer", (uintptr_t)&glVertexPointer },
         { "glViewport", (uintptr_t)&glViewport },

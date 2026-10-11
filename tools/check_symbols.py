@@ -10,6 +10,9 @@ Reads:
     soloader_lookup_symbol() for gl* names).
 Prints what each name resolves to and fails (exit 1) if something that must
 resolve does not, or if a needed import is still mapped to a silent ret0/ret1.
+An alice_gl* entry is a GL shim. A name in neither the loader table nor
+vitaGL is absent. The four miniquad vita fallbacks must be shims; the pure
+GLES3 names miniquad can live without must stay absent.
 
 Usage: spike-c/loader/tools/check_symbols.py [SYMBOLS.md] [loader dir]
 No console needed; this is the static half of the jalon 2 check (the dynamic
@@ -26,6 +29,24 @@ SYMBOLS = Path(sys.argv[1]) if len(sys.argv) > 1 else LOADER.parent / "SYMBOLS.m
 DEFINED = {"USE_SCELIBC_IO"}            # NDK_PORT is OFF for this port
 EXPECTED_UNRESOLVED_IMPORTS = {"copy_file_range", "splice"}   # weak, NULL on purpose
 SILENT = {"ret0", "ret1", "retminus1"}
+# Same four replacements as miniquad vita-0.4.8 gl_loader.rs.
+EXPECTED_SHIM = (
+    "glDrawBuffers",
+    "glRenderbufferStorageMultisample",
+    "glVertexAttribIPointer",
+    "glBlendColor",
+)
+# GLES3 that the vita backend deliberately leaves unresolved.
+EXPECTED_ABSENT = (
+    "glTexImage3D",
+    "glClearBufferfi",
+    "glClearBufferfv",
+    "glClearBufferuiv",
+    "glFramebufferTextureLayer",
+    "glCompressedTexImage3D",
+    "glTexSubImage3D",
+    "glGetQueryObjectui64v",
+)
 
 
 def symbols_sections(text):
@@ -89,14 +110,27 @@ def main():
         table.setdefault(m.group(1), m.group(2))
     vgl = set(re.findall(r'\{"(gl[A-Za-z0-9_]+)",', (LOADER / "lib/vitagl/source/lookup.c").read_text()))
 
-    def resolve(name):
-        if name in table:
-            return "table:" + table[name]
+    def classify(name):
+        impl = table.get(name)
+        if impl is not None:
+            if impl.startswith("alice_gl"):
+                return "shim"
+            if impl in SILENT:
+                return "silent"
+            return "table"
         if name.startswith("gl"):
             stripped = re.sub(r"(EXT|ARB|OES)$", "", name)
             if stripped in vgl:
                 return "vitaGL"
-        return None
+        return "absent"
+
+    def resolve(name):
+        kind = classify(name)
+        if kind == "absent":
+            return None
+        if kind == "vitaGL":
+            return "vitaGL"
+        return "table:" + table[name]
 
     errors = 0
     print(f"SYMBOLS.md: {len(imports)} imports, " +
@@ -118,23 +152,41 @@ def main():
 
     for lib, must in [("libEGL", True), ("libGLESv2", True), ("libGLESv3", False), ("libaaudio", False)]:
         names = by_name[lib]
-        ok = [n for n in names if resolve(n)]
-        miss = [n for n in names if not resolve(n)]
-        print(f"== {lib} by name: {len(ok)}/{len(names)} served")
+        kinds = {n: classify(n) for n in names}
+        served = [n for n in names if kinds[n] != "absent"]
+        print(f"== {lib} by name: {len(served)}/{len(names)} served")
         for n in names:
-            r = resolve(n)
-            if must and not r:
+            if must and kinds[n] == "absent":
                 print(f"  MISSING {n}")
                 errors += 1
-            elif r and table.get(n) in SILENT:
+            elif kinds[n] == "silent":
                 print(f"  SILENT STUB {n} -> {table[n]}")
                 errors += 1
+        shims = [n for n in names if kinds[n] == "shim"]
+        vita = [n for n in names if kinds[n] in ("vitaGL", "table")]
+        absent = [n for n in names if kinds[n] == "absent"]
+        if shims:
+            print("  shim: " + " ".join(shims))
         if not must:
-            if ok:
-                print("  served (vitaGL implements them): " + " ".join(ok))
-            if miss:
-                print("  NULL on purpose: " + " ".join(miss))
+            if vita:
+                print("  served (vitaGL implements them): " + " ".join(vita))
+            if absent:
+                print("  absent: " + " ".join(absent))
         print()
+
+    print("== miniquad vita fallbacks")
+    for n in EXPECTED_SHIM:
+        kind = classify(n)
+        print(f"  {n}: {kind}")
+        if kind != "shim":
+            errors += 1
+    print("== GLES3 left unresolved")
+    for n in EXPECTED_ABSENT:
+        kind = classify(n)
+        print(f"  {n}: {kind}")
+        if kind != "absent":
+            errors += 1
+    print()
 
     print("RESULT:", "OK" if errors == 0 else f"{errors} problem(s)")
     return 1 if errors else 0
