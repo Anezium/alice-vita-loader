@@ -54,14 +54,14 @@ void soloader_init_all() {
 
 #ifdef USE_SCELIBC_IO
     if (fios_init(DATA_PATH) == 0)
-        l_success("FIOS initialized.");
+        l_notice("FIOS initialized.");
 #endif
 
     if (!module_loaded("kubridge")) {
         l_fatal("kubridge is not loaded.");
         fatal_error("Error: kubridge.skprx is not installed.");
     }
-    l_success("kubridge check passed.");
+    l_notice("kubridge check passed.");
 
     if (!file_exists(SO_PATH)) {
         fatal_error("Looks like you haven't installed the data files for this "
@@ -75,31 +75,31 @@ void soloader_init_all() {
     }
 
     settings_load();
-    l_success("Settings loaded.");
+    l_notice("Settings loaded.");
 
     so_relocate(&so_mod);
-    l_success("SO relocated.");
+    l_notice("SO relocated.");
 
     resolve_imports(&so_mod);
-    l_success("SO imports resolved.");
+    l_notice("SO imports resolved.");
 
     so_patch();
-    l_success("SO patched.");
+    l_notice("SO patched.");
 
     so_flush_caches(&so_mod);
-    l_success("SO caches flushed.");
+    l_notice("SO caches flushed.");
 
     so_initialize(&so_mod);
-    l_success("SO initialized.");
+    l_notice("SO initialized.");
 
     gl_preload();
-    l_success("OpenGL preloaded.");
+    l_notice("OpenGL preloaded.");
 
     jni_init();
-    l_success("FalsoJNI initialized.");
+    l_notice("FalsoJNI initialized.");
 
 #ifndef NDK_PORT
     controls_init();
-    l_success("Controls initialized.");
+    l_notice("Controls initialized.");
 #endif
 }

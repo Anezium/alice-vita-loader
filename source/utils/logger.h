@@ -42,6 +42,17 @@ extern "C" {
 #define l_error(...)   _log_print(LT_ERROR,   __VA_ARGS__)
 #define l_fatal(...)   _log_print(LT_FATAL,   __VA_ARGS__)
 
+// Messages that must reach the log in Release builds too.
+// l_notice: informational; l_stub: a stub or partial implementation was hit
+// (a stub should never be silent).
+#define l_notice(...)  _log_print(LT_INFO,    __VA_ARGS__)
+#define l_stub(...)    _log_print(LT_WARN,    __VA_ARGS__)
+// Log only the first time this call site is reached (hot stubs).
+#define l_stub_once(...) do { \
+        static volatile int _l_once_flag = 0; \
+        if (__sync_lock_test_and_set(&_l_once_flag, 1) == 0) l_stub(__VA_ARGS__); \
+    } while (0)
+
 void _log_print(int t, const char* fmt, ...)
                 __attribute__ ((format (printf, 2, 3)));
 

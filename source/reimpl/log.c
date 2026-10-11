@@ -12,6 +12,28 @@
 #include <psp2/kernel/clib.h>
 #include <stdlib.h>
 
+// Print __android_log_* messages of every priority, also in Release builds:
+// l_info/l_warn/l_debug compile to nothing there, which hid every log the
+// .so writes. Build with -DLOADER_ALOG_ALWAYS=0 for the old behaviour.
+#ifndef LOADER_ALOG_ALWAYS
+#  define LOADER_ALOG_ALWAYS 1
+#endif
+
+#if LOADER_ALOG_ALWAYS
+#define print_common \
+    switch (prio) { \
+        case ANDROID_LOG_ERROR: \
+        case ANDROID_LOG_FATAL: \
+            l_error("[ALOG][%s] %s", tag, text); \
+            break; \
+        case ANDROID_LOG_WARN: \
+            l_stub("[ALOG][%s] %s", tag, text); \
+            break; \
+        default: \
+            l_notice("[ALOG][%s] %s", tag, text); \
+            break; \
+    }
+#else
 #define print_common \
     switch (prio) { \
         case ANDROID_LOG_INFO: \
@@ -33,6 +55,7 @@
             l_debug("[ALOG][%s] %s", tag, text); \
             break; \
     }
+#endif
 
 int __android_log_write(int prio, const char* tag, const char* text) {
     print_common

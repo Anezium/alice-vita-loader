@@ -197,8 +197,8 @@ int pthread_create_soloader(pthread_t *thread, const pthread_attr_t_bionic *attr
     // LOADER_THREAD_STACK_DEFAULT when nothing was requested.
     size_t stack = requested ? requested : LOADER_THREAD_STACK_DEFAULT;
     if (stack > LOADER_THREAD_STACK_CAP) {
-        l_info("pthread_create(start=%p): stack %u KiB requested, capped to %u KiB (LOADER_THREAD_STACK_CAP)",
-               start, (unsigned)(stack / 1024), (unsigned)(LOADER_THREAD_STACK_CAP / 1024));
+        l_notice("pthread_create(start=%p): stack %u KiB requested, capped to %u KiB (LOADER_THREAD_STACK_CAP)",
+                 start, (unsigned)(stack / 1024), (unsigned)(LOADER_THREAD_STACK_CAP / 1024));
         stack = LOADER_THREAD_STACK_CAP;
     }
     stack = (stack + 4095) & ~(size_t)4095;
@@ -208,8 +208,8 @@ int pthread_create_soloader(pthread_t *thread, const pthread_attr_t_bionic *attr
     if (ret != 0)
         l_error("pthread_create(start=%p, stack=%u KiB) failed: %d", start, (unsigned)(stack / 1024), ret);
     else
-        l_info("pthread_create(start=%p, stack=%u KiB%s) = thread 0x%x", start,
-               (unsigned)(stack / 1024), requested ? "" : ", default", (unsigned)*thread);
+        l_notice("pthread_create(start=%p, stack=%u KiB%s) = thread 0x%x", start,
+                 (unsigned)(stack / 1024), requested ? "" : ", default", (unsigned)*thread);
 
     if (!attr)
         pthread_attr_destroy(&local);

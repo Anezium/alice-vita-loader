@@ -172,12 +172,12 @@ int closedir_soloader(DIR * dir) {
 }
 
 int fcntl_soloader(int fd, int cmd, ...) {
-    l_warn("fcntl(%i, %i, ...): not implemented", fd, cmd);
+    l_stub_once("fcntl(%i, %i, ...): not implemented, returning 0 (logged once)", fd, cmd);
     return 0;
 }
 
 int ioctl_soloader(int fd, int request, ...) {
-    l_warn("ioctl(%i, %i, ...): not implemented", fd, request);
+    l_stub("ioctl(%i, 0x%x, ...): not implemented, returning 0", fd, request);
     return 0;
 }
 
