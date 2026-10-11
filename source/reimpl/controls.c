@@ -118,6 +118,12 @@ static ButtonMapping mapping[] = {
         { SCE_CTRL_R1,        AKEYCODE_BUTTON_R1 },
         { SCE_CTRL_START,     AKEYCODE_BUTTON_START },
         { SCE_CTRL_SELECT,    AKEYCODE_BUTTON_SELECT },
+        // PS TV / DualShock extras (Ext2 reports the handheld shoulder
+        // buttons as L1/R1).
+        { SCE_CTRL_L2,        AKEYCODE_BUTTON_L2 },
+        { SCE_CTRL_R2,        AKEYCODE_BUTTON_R2 },
+        { SCE_CTRL_L3,        AKEYCODE_BUTTON_THUMBL },
+        { SCE_CTRL_R3,        AKEYCODE_BUTTON_THUMBR },
 };
 
 uint32_t old_buttons = 0, current_buttons = 0, pressed_buttons = 0, released_buttons = 0;
