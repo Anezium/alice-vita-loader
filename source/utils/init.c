@@ -20,6 +20,7 @@
 #include "reimpl/sys.h"
 #include "config.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #include <psp2/appmgr.h>
@@ -78,6 +79,33 @@ void soloader_init_all() {
     if (!module_loaded("kubridge")) {
         l_fatal("kubridge is not loaded.");
         fatal_error("Error: kubridge.skprx is not installed.");
+    }
+    // so_util calls kuKernelMemProtect (NID 0x566d2af1). Calling the unresolved
+    // import crashes, so this only reads the installed skprx. The check is the
+    // SHA1 gate from v-atamanenko/mc3-vita source/utils/init.c, limited to the
+    // release whose export table does not contain that NID: TheOfficialFloW
+    // v0.1, SHA1 E033D76A90C9B8F2D496735C2692AFD8C3ED32FE. bythos14 v0.2, v0.3
+    // and v0.3.1 hotfix do export it (module version stays 0x0100 on all four),
+    // so their hashes are not rejected here.
+    {
+        const char *kubridge_path = NULL;
+        if (file_exists("ux0:/tai/kubridge.skprx"))
+            kubridge_path = "ux0:/tai/kubridge.skprx";
+        else if (file_exists("ur0:/tai/kubridge.skprx"))
+            kubridge_path = "ur0:/tai/kubridge.skprx";
+
+        char *kubridge_hash = kubridge_path ? file_sha1sum(kubridge_path) : NULL;
+        if (!kubridge_hash) {
+            l_fatal("kubridge.skprx not found in ux0:/tai or ur0:/tai.");
+            fatal_error("Error: kubridge.skprx is not in ux0:/tai or ur0:/tai.");
+        }
+        l_notice("kubridge hash: %s (%s)", kubridge_hash, kubridge_path);
+        if (strcmp(kubridge_hash, "E033D76A90C9B8F2D496735C2692AFD8C3ED32FE") == 0) {
+            free(kubridge_hash);
+            l_fatal("kubridge too old: kuKernelMemProtect missing, install bythos14 kubridge v0.3.1 hotfix");
+            fatal_error("kubridge too old: kuKernelMemProtect missing, install bythos14 kubridge v0.3.1 hotfix");
+        }
+        free(kubridge_hash);
     }
     l_notice("kubridge check passed.");
 
