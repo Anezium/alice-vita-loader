@@ -63,6 +63,8 @@
 
 const unsigned int __page_size = PAGE_SIZE;
 
+extern so_module so_mod;
+
 extern void * _ZNSt9exceptionD2Ev;
 extern void * _ZSt17__throw_bad_allocv;
 extern void * _ZSt9terminatev;
@@ -132,6 +134,9 @@ extern const short *BIONIC_toupper_tab_;
 static FILE __sF_fake[3];
 
 void *dlsym_soloader(void * handle, const char * symbol);
+void *dlopen_soloader(const char * filename, int flags);
+int dlclose_soloader(void * handle);
+char *dlerror_soloader(void);
 
 so_default_dynlib default_dynlib[] = {
         // Common C/C++ internals
@@ -947,10 +952,10 @@ so_default_dynlib default_dynlib[] = {
 
 
         // libdl
-        { "dlclose", (uintptr_t)&ret0 },
-        { "dlerror", (uintptr_t)&ret0 },
-        { "dlopen", (uintptr_t)&ret1 },
-        { "dlsym", (uintptr_t)&dlsym_soloader },
+        { "dlclose", (uintptr_t)&dlclose_soloader }, // was ret0
+        { "dlerror", (uintptr_t)&dlerror_soloader }, // was ret0
+        { "dlopen", (uintptr_t)&dlopen_soloader },   // was ret1
+        { "dlsym", (uintptr_t)&dlsym_soloader },     // returned &table[i].func
 
 
         // Errno
@@ -1107,15 +1112,100 @@ so_default_dynlib default_dynlib[] = {
         { "uncompress", (uintptr_t)&uncompress },
 };
 
-void *dlsym_soloader(void * handle, const char * symbol) {
+/*
+ * Symbol lookup shared by dlsym (and usable by eglGetProcAddress):
+ * 1. the loader table (so the loader's own hooks win),
+ * 2. vitaGL's own table for gl* names (vglGetProcAddress strips EXT/OES/ARB),
+ * 3. NULL, so that callers which probe for optional functions see them missing.
+ */
+void *soloader_lookup_symbol(const char *name, int log_missing) {
+    if (!name) return NULL;
     for (int i = 0; i < sizeof(default_dynlib) / sizeof(default_dynlib[0]); i++) {
-        if (strcmp(symbol, default_dynlib[i].symbol) == 0) {
-            return &default_dynlib[i].func;
+        if (strcmp(name, default_dynlib[i].symbol) == 0)
+            return (void *)default_dynlib[i].func; // the function, not &table[i].func
+    }
+    if (name[0] == 'g' && name[1] == 'l') {
+        void *p = (void *)vglGetProcAddress(name);
+        if (p) return p;
+    }
+    if (log_missing)
+        l_notice("symbol lookup: \"%s\" not provided, returning NULL", name);
+    return NULL;
+}
+
+/*
+ * dlopen: a .so asks for the system libraries it does not link directly
+ * (EGL loaded at run time, OpenSL ES, ...). Known ones get a fake non-NULL
+ * handle and dlsym searches the global table. Anything else (libaaudio.so for
+ * example) is refused, so callers take their fallback path.
+ */
+static const char *dl_known_libs[] = {
+    "libEGL.so", "libEGL.so.1", "libGLESv1_CM.so", "libGLESv2.so", "libGLESv3.so",
+    "libandroid.so", "libOpenSLES.so", "liblog.so", "libc.so", "libm.so", "libdl.so",
+};
+#define DL_HANDLE_BASE 0xD1A00000u
+#define DL_HANDLE_SELF ((void *)(DL_HANDLE_BASE + 0xFFu))
+static const char *dl_last_error = NULL;
+
+void *dlopen_soloader(const char * filename, int flags) {
+    if (!filename) {
+        l_notice("dlopen(NULL, 0x%x) -> main program handle", flags);
+        return DL_HANDLE_SELF;
+    }
+    const char *base = strrchr(filename, '/');
+    base = base ? base + 1 : filename;
+    for (unsigned i = 0; i < sizeof(dl_known_libs) / sizeof(dl_known_libs[0]); i++) {
+        if (strcmp(base, dl_known_libs[i]) == 0) {
+            l_notice("dlopen(\"%s\", 0x%x) -> handle %p", filename, flags, (void *)(DL_HANDLE_BASE + i));
+            return (void *)(DL_HANDLE_BASE + i);
         }
     }
-
-    l_error("dlsym: Unknown symbol \"%s\".", symbol);
+    l_notice("dlopen(\"%s\", 0x%x) -> NULL (not provided on Vita)", filename, flags);
+    dl_last_error = "library not available in the Vita loader";
     return NULL;
+}
+
+int dlclose_soloader(void * handle) {
+    return 0; // nothing is ever unloaded
+}
+
+char *dlerror_soloader(void) {
+    const char *e = dl_last_error;
+    dl_last_error = NULL;
+    return (char *)e;
+}
+
+void *dlsym_soloader(void * handle, const char * symbol) {
+    void *p = soloader_lookup_symbol(symbol, 0);
+    if (!p && symbol) {
+        // RTLD_DEFAULT / self handle: also look at the .so's own exports.
+        p = (void *)so_symbol(&so_mod, symbol);
+    }
+    if (!p) {
+        l_notice("dlsym(%p, \"%s\") -> NULL", handle, symbol ? symbol : "(null)");
+        dl_last_error = "undefined symbol";
+    }
+    return p;
+}
+
+/*
+ * List every undefined dynamic symbol of the .so that neither the table nor
+ * vitaGL provides, so the first boot log states exactly what is missing.
+ */
+static void report_unresolved(so_module *mod) {
+    int missing = 0;
+    for (uint32_t i = 1; i < mod->num_dynsym; i++) {
+        Elf32_Sym *sym = &mod->dynsym[i];
+        const char *name = mod->dynstr + sym->st_name;
+        if (sym->st_shndx != SHN_UNDEF || !sym->st_name || !*name)
+            continue;
+        if (!soloader_lookup_symbol(name, 0)) {
+            int weak = ELF32_ST_BIND(sym->st_info) == STB_WEAK;
+            l_notice("unresolved import: %s%s", name, weak ? " (weak, stays NULL)" : "");
+            missing++;
+        }
+    }
+    l_notice("import check: %d unresolved symbol(s)", missing);
 }
 
 void resolve_imports(so_module* mod) {
@@ -1124,4 +1214,5 @@ void resolve_imports(so_module* mod) {
     __sF_fake[2] = *stderr;
 
     so_resolve(mod, default_dynlib, sizeof(default_dynlib), 0);
+    report_unresolved(mod);
 }
