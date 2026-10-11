@@ -145,6 +145,25 @@ int gettid_soloader(void) {
     return sceKernelGetThreadId();
 }
 
+#define BIONIC_PR_SET_NAME 15
+#define BIONIC_PR_GET_NAME 16
+
+int prctl_soloader(int option, unsigned long a2, unsigned long a3, unsigned long a4, unsigned long a5) {
+    switch (option) {
+        case BIONIC_PR_SET_NAME:
+            l_notice("prctl(PR_SET_NAME, \"%.16s\") on thread 0x%x", (const char *)a2, sceKernelGetThreadId());
+            return 0;
+        case BIONIC_PR_GET_NAME:
+            if (a2) strcpy((char *)a2, "alice");
+            return 0;
+        default:
+            l_stub("prctl(%d, 0x%lx, ...) from %p: not supported, EINVAL",
+                   option, a2, __builtin_return_address(0));
+            errno = EINVAL;
+            return -1;
+    }
+}
+
 // getrandom(2) (bionic API 28, weak import used by Rust std's HashMap seed).
 ssize_t getrandom_soloader(void *buf, size_t buflen, unsigned int flags) {
     uint8_t *p = (uint8_t *)buf;

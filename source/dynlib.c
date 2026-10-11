@@ -1040,7 +1040,7 @@ so_default_dynlib default_dynlib[] = {
         { "bsearch", (uintptr_t)&bsearch },
         { "exit", (uintptr_t)&exit_soloader },
         { "lrand48", (uintptr_t)&lrand48 },
-        { "prctl", (uintptr_t)&ret0 },
+        { "prctl", (uintptr_t)&prctl_soloader }, // was ret0
         { "sleep", (uintptr_t)&sleep },
         { "srand48", (uintptr_t)&srand48 },
         { "strtod", (uintptr_t)&strtod },

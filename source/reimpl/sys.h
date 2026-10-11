@@ -39,6 +39,8 @@ long syscall_soloader(long n, long a1, long a2, long a3, long a4, long a5, long 
 
 int gettid_soloader(void);
 
+int prctl_soloader(int option, unsigned long a2, unsigned long a3, unsigned long a4, unsigned long a5);
+
 ssize_t getrandom_soloader(void *buf, size_t buflen, unsigned int flags);
 
 long sysconf_soloader(int name);
