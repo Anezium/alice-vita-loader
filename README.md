@@ -1,3 +1,10 @@
+> **Branche `alice` : loader PS Vita pour `liblooking_glass.so`** (Looking Glass, réimplémentation
+> d'American McGee's Alice), fork de [v-atamanenko/soloader-boilerplate](https://github.com/v-atamanenko/soloader-boilerplate)
+> à partir de `0a382f0` (MIT, voir [LICENSE](LICENSE)). La branche `upstream-fixes` ne contient que les
+> corrections génériques, proposables upstream ; `alice` y ajoute le spécifique. Ce qui change et pourquoi :
+> [CHANGES.md](CHANGES.md) ; état et commandes : [docs/JALON2-PREP.md](docs/JALON2-PREP.md). Les dépendances
+> sont des sous-modules : `git clone --recursive`. Le README d'origine suit, inchangé.
+
 <h1 align="center"><img alt="SoLoBoP" src="https://raw.githubusercontent.com/gist/v-atamanenko/e547f3f0667e4684ca665b11a7ce1e3c/raw/6dd7ce900576ae334cda1886095c09a784663507/solobop_logo.svg"></h1>
 <p align="center">
   <a href="#what-is-this">What is this</a> •
