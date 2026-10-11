@@ -35,6 +35,8 @@ void assert2(const char *f, int l, const char *func, const char *msg);
 
 void syscall(int c);
 
+long sysconf_soloader(int name);
+
 void __stack_chk_fail_soloader();
 
 void abort_soloader();

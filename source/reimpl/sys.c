@@ -101,6 +101,61 @@ void syscall(int c) {
     l_warn("syscall(%i): not implemented", c);
 }
 
+// sysconf(_SC_NPROCESSORS_ONLN/CONF). The Vita has 4 Cortex-A9 cores but only
+// 3 are available to applications (core 3 belongs to the system).
+#ifndef LOADER_NPROCESSORS
+#  define LOADER_NPROCESSORS 3
+#endif
+
+// Bionic sysconf() names (libc/include/bits/sysconf.h).
+#define BIONIC_SC_ARG_MAX            0x0000
+#define BIONIC_SC_CLK_TCK            0x0006
+#define BIONIC_SC_OPEN_MAX           0x000b
+#define BIONIC_SC_IOV_MAX            0x0026
+#define BIONIC_SC_PAGESIZE           0x0027
+#define BIONIC_SC_PAGE_SIZE          0x0028
+#define BIONIC_SC_GETGR_R_SIZE_MAX   0x0047
+#define BIONIC_SC_GETPW_R_SIZE_MAX   0x0048
+#define BIONIC_SC_THREAD_STACK_MIN   0x004c
+#define BIONIC_SC_NPROCESSORS_CONF   0x0060
+#define BIONIC_SC_NPROCESSORS_ONLN   0x0061
+#define BIONIC_SC_PHYS_PAGES         0x0062
+#define BIONIC_SC_AVPHYS_PAGES       0x0063
+
+long sysconf_soloader(int name) {
+    switch (name) {
+        case BIONIC_SC_PAGESIZE:
+        case BIONIC_SC_PAGE_SIZE:
+            return PAGE_SIZE;
+        case BIONIC_SC_NPROCESSORS_CONF:
+        case BIONIC_SC_NPROCESSORS_ONLN:
+            return LOADER_NPROCESSORS;
+        case BIONIC_SC_PHYS_PAGES:
+            // 512 MiB of LPDDR2, of which ~365 MiB are usable by applications.
+            return (512L * 1024 * 1024) / PAGE_SIZE;
+        case BIONIC_SC_AVPHYS_PAGES:
+            return (256L * 1024 * 1024) / PAGE_SIZE;
+        case BIONIC_SC_CLK_TCK:
+            return 100;
+        case BIONIC_SC_OPEN_MAX:
+            return 1024;
+        case BIONIC_SC_IOV_MAX:
+            return 1024;
+        case BIONIC_SC_ARG_MAX:
+            return 128 * 1024;
+        case BIONIC_SC_THREAD_STACK_MIN:
+            return 16 * 1024;
+        case BIONIC_SC_GETGR_R_SIZE_MAX:
+        case BIONIC_SC_GETPW_R_SIZE_MAX:
+            return 1024;
+        default:
+            l_stub("sysconf(0x%x) from %p: unknown name, returning -1/EINVAL",
+                   name, __builtin_return_address(0));
+            errno = EINVAL;
+            return -1;
+    }
+}
+
 void __stack_chk_fail_soloader() {
     l_fatal("Stack collapsed at address %p", __builtin_return_address(0));
 }

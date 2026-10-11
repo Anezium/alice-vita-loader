@@ -992,7 +992,7 @@ so_default_dynlib default_dynlib[] = {
         { "getpid", (uintptr_t)&getpid },
         { "sbrk", (uintptr_t)&sbrk },
         { "syscall", (uintptr_t)&syscall },
-        { "sysconf", (uintptr_t)&ret0 },
+        { "sysconf", (uintptr_t)&sysconf_soloader },
         { "system", (uintptr_t)&system },
         { "waitpid", (uintptr_t)&ret0 },
 
