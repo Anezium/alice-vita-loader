@@ -205,7 +205,7 @@ int64_t lseek64_soloader(int fd, int64_t offset, int whence) {
     return (int64_t)ret;
 }
 
-/* Output written by the .so to its stdout/stderr goes to the loader log. */
+/* stdout/stderr of the .so (Rust eprintln!/println!, libc++abi) go to the loader log. */
 static void log_std_stream(int fd, const void *buf, size_t count) {
     const char *p = (const char *)buf;
     while (count > 0) {
@@ -216,6 +216,14 @@ static void log_std_stream(int fd, const void *buf, size_t count) {
         p += chunk;
         count -= chunk;
     }
+}
+
+ssize_t write_soloader(int fd, const void *buf, size_t count) {
+    if (fd == 1 || fd == 2) {
+        if (count) log_std_stream(fd, buf, count);
+        return (ssize_t)count;
+    }
+    return write(fd, buf, count);
 }
 
 /*
