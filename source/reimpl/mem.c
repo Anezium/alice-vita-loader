@@ -22,13 +22,27 @@ void *sceClibMemclr(void *dst, size_t len) {
 }
 
 void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offs) {
-    l_warn("mmap(%p, %i, %i, %i, %i, %li)", addr, length, prot, flags, fd, offs);
-
+    // Anonymous mappings only (Rust backtrace/gimli after a panic). A file
+    // mapping cannot be emulated by zeroed memory: refuse it loudly.
     if (length <= 0) {
+        errno = EINVAL;
         return MAP_FAILED;
     }
-    void* ret= malloc(length);
+    if (fd >= 0) {
+        l_stub("mmap(%p, %u, prot=%i, flags=0x%x, fd=%i, off=%li) from %p: file mappings "
+               "unsupported, MAP_FAILED/ENODEV", addr, (unsigned)length, prot, flags, fd, offs,
+               __builtin_return_address(0));
+        errno = ENODEV;
+        return MAP_FAILED;
+    }
+    void *ret = memalign(4096, length);
+    if (!ret) {
+        l_error("mmap(anonymous, %u): out of memory", (unsigned)length);
+        errno = ENOMEM;
+        return MAP_FAILED;
+    }
     memset(ret, 0, length);
+    l_notice("mmap(anonymous, %u) = %p (heap-backed)", (unsigned)length, ret);
     return ret;
 }
 
