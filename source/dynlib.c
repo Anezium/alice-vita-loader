@@ -494,7 +494,7 @@ so_default_dynlib default_dynlib[] = {
         { "ftruncate", (uintptr_t)&ftruncate },
         { "getcwd", (uintptr_t)&getcwd },
         { "lseek", (uintptr_t)&lseek },
-        { "lseek64", (uintptr_t)&ret0 }, // TODO: implement or stub with warning
+        { "lseek64", (uintptr_t)&lseek64_soloader },
         { "lstat", (uintptr_t)&lstat },
         { "mkdir", (uintptr_t)&mkdir },
 #ifndef NDK_PORT

@@ -24,6 +24,9 @@
 #include "utils/logger.h"
 #include "utils/utils.h"
 
+#include <errno.h>
+#include <stdint.h>
+
 // Includes the following inline utilities:
 // int oflags_musl_to_newlib(int flags);
 // dirent64_bionic * dirent_newlib_to_bionic(struct dirent* dirent_newlib);
@@ -182,4 +185,21 @@ int fsync_soloader(int fd) {
     int ret = fsync(fd);
     l_debug("fsync(%i): %i", fd, ret);
     return ret;
+}
+
+/*
+ * lseek64 used to be ret0, which breaks every seek done by Rust std (File::seek
+ * is lseek64 on Android): zip readers seek to the end to find the central
+ * directory. newlib's off_t is 32-bit on the Vita.
+ */
+int64_t lseek64_soloader(int fd, int64_t offset, int whence) {
+    if (offset > INT32_MAX || offset < INT32_MIN) {
+        l_error("lseek64(%i, %lld, %i): offset does not fit newlib's 32-bit off_t", fd, offset, whence);
+        errno = EOVERFLOW;
+        return -1;
+    }
+    off_t ret = lseek(fd, (off_t)offset, whence); // SEEK_SET/CUR/END are 0/1/2 on both sides
+    if (ret < 0)
+        l_debug("lseek64(%i, %lld, %i): %li", fd, offset, whence, (long)ret);
+    return (int64_t)ret;
 }
