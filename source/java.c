@@ -110,25 +110,35 @@ jobject MainActivity_getAssets(jmethodID id, va_list args) {
 
 #define AUDIOTRACK_ERROR_BAD_VALUE (-2)
 
+#define AUDIOFORMAT_ENCODING_PCM_8BIT  3
+#define AUDIOFORMAT_ENCODING_PCM_FLOAT 4
+
 jint AudioTrack_getMinBufferSize(jmethodID id, va_list args) {
-    /*
-     * Do NOT read `args` here. cpal calls this through Rust's `jni` crate,
-     * which always uses CallStaticIntMethodA; FalsoJNI v1.4 converts the
-     * jvalue array with _AtoV(), which returns a va_list pointing into a stack
-     * frame that is already gone (see CHANGES.md, "FalsoJNI *MethodA").
-     */
+    // getMinBufferSize(int sampleRateInHz, int channelConfig, int audioFormat).
+    // cpal calls it through Rust's `jni` crate, i.e. CallStaticIntMethodA;
+    // the FalsoJNI fork passes jvalue arguments through, so they read like
+    // those of any other method.
+    jint rate = va_arg(args, jint);
+    jint channel_mask = va_arg(args, jint);
+    jint encoding = va_arg(args, jint);
 #if LOADER_AUDIO_ENABLED
-    // 4096 bytes is a valid minimum for every (rate, mask, format) cpal probes
-    // (Android returns ~20 ms worth); arguments are not trustworthy, see above.
-    l_notice("[java] AudioTrack.getMinBufferSize(...) = 4096 (fixed)");
-    return 4096;
+    // About 20 ms of audio, which is what Android returns, never below 4096 bytes.
+    int channels = __builtin_popcount((unsigned)channel_mask);
+    int bytes = encoding == AUDIOFORMAT_ENCODING_PCM_FLOAT ? 4 :
+                encoding == AUDIOFORMAT_ENCODING_PCM_8BIT ? 1 : 2;
+    jint size = (rate / 50) * (channels ? channels : 1) * bytes;
+    if (size < 4096)
+        size = 4096;
+    l_notice("[java] AudioTrack.getMinBufferSize(%d Hz, mask 0x%x, encoding %d) = %d",
+             rate, channel_mask, encoding, size);
+    return size;
 #else
     // cpal unwraps this call (a missing method would panic) but treats a
     // negative size as "configuration unsupported": with every combination
     // rejected, rodio's OutputStream::try_default() returns an error and the
     // game runs without sound ("No audio output available").
-    l_stub_once("[java] AudioTrack.getMinBufferSize: ERROR_BAD_VALUE, audio disabled "
-                "(LOADER_AUDIO_ENABLED=0; logged once)");
+    l_stub_once("[java] AudioTrack.getMinBufferSize(%d Hz, mask 0x%x, encoding %d): ERROR_BAD_VALUE, "
+                "audio disabled (LOADER_AUDIO_ENABLED=0; logged once)", rate, channel_mask, encoding);
     return AUDIOTRACK_ERROR_BAD_VALUE;
 #endif
 }

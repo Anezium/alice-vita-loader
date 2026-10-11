@@ -147,7 +147,7 @@ la sortie Docker Hub passe par le proxy de la session sans injection de CA.
 | Pile de 8 Mio insuffisante pour le rendu (16 demandés) | crash dans le `.so` profond dans la pile | `-DLOADER_THREAD_STACK_CAP=16777216` si la mémoire suit |
 | Mémoire : tas 256 Mio + vitaGL + piles | `vglInitExtended = 0` / allocations nulles | `LOADER_NEWLIB_HEAP_SIZE`, `LOADER_VGL_RAM_THRESHOLD`, profil de perf du fork |
 | Méthode Java non servie | `[JNI] GetMethodID(… "x" …): not found` puis panic `assert!(!method.is_null())` (miniquad) | ajouter la méthode dans `java.c` |
-| FalsoJNI `*MethodA` (arguments illisibles) | valeurs absurdes dans une méthode appelée par la crate `jni` | voir CHANGES.md, corriger FalsoJNI |
+| FalsoJNI `*MethodA` (arguments illisibles) | valeurs absurdes dans une méthode appelée par la crate `jni` | corrigé depuis dans le fork FalsoJNI (`fix-call-method-a`), voir CHANGES.md ; si ça revient, vérifier que la signature passée à `GetMethodID` est bien mémorisée |
 | Shaders GLSL 100 de macroquad refusés par le traducteur de vitaGL | `glCompileShader` en échec, écran noir | build Debug (vitaGL `LOG_ERRORS=1`) |
 | Mapping manette (Ext2 : L/R de la Vita = L1/R1 ?) | gâchettes/épaules inversées | `reimpl/controls.c` |
 

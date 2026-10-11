@@ -270,18 +270,28 @@ a maintenant un vrai environnement (`getenv`/`setenv`/`unsetenv`, table interne)
 | `utils.c` `file_load` | argument `printf` manquant | corrigé |
 | Contrôles | L2/R2/L3/R3 (PS TV) absents | ajoutés |
 
-## Piège trouvé dans FalsoJNI v1.4 (non corrigé, contourné)
+## Piège trouvé dans FalsoJNI v1.4 (corrigé dans le fork, contournement retiré)
 
-`Call*MethodA` convertit le tableau `jvalue` avec `_AtoV(0, args)`, qui renvoie un `va_list` pointant dans **son
-propre cadre de pile, déjà détruit** au retour. Or la crate Rust `jni` (cpal, oboe-rs) appelle **toujours** les
-variantes `*A`. Conséquence : une méthode appelée ainsi ne doit pas lire ses arguments. Seule
-`AudioTrack.getMinBufferSize` est concernée aujourd'hui et ne les lit pas. À corriger dans FalsoJNI (passer le
-`jvalue*` à la méthode) avant de servir de vraies méthodes Java à cpal/oboe.
+`Call*MethodA` convertissait le tableau `jvalue` avec `_AtoV(0, args)`, qui renvoie un `va_list` pointant dans
+**son propre cadre de pile, déjà détruit** au retour, et qui ne contiendrait de toute façon que le pointeur
+`jvalue*`, pas les valeurs. Or la crate Rust `jni` (cpal, oboe-rs) appelle **toujours** les variantes `*A`.
+
+Correctif dans [Anezium/FalsoJNI](https://github.com/Anezium/FalsoJNI), branche `fix-call-method-a`
+(`890eb0b`) : `GetMethodID`/`GetStaticMethodID` mémorisent la signature de chaque méthode, et chaque variante
+`*A` reconstruit dans son propre cadre la zone qu'un appel variadique aurait poussée (promotions par défaut,
+emplacements de 4 octets, valeurs 64 bits alignées sur 8, convention AAPCS lue par `va_arg`), puis la passe à
+la méthode sous forme de `va_list`. Les implémentations ne changent pas. Vérifié sur armv7 Linux (gcc 12 sous
+qemu) avec un banc jetable : 55 contrôles passent, 42 échouaient avant.
+
+Contournement retiré : `AudioTrack.getMinBufferSize` lit maintenant ses trois arguments (fréquence, masque de
+canaux, format). Ils apparaissent dans le log, et avec `LOADER_AUDIO_ENABLED=1` la taille renvoyée en dépend
+(environ 20 ms, au moins 4096 octets) au lieu d'être fixée à 4096.
 
 ## Reste à faire côté loader (non bloquant pour le premier log)
 
 - Suspension / reprise (`activityOnPause`/`Resume` sur les événements `sceAppMgr`), touche Back Android,
   clavier IME (`showKeyboard`), pavé tactile arrière.
-- Audio réel : `LOADER_AUDIO_ENABLED=1` + correction FalsoJNI ci-dessus, ou backend audio côté Rust.
+- Audio réel : `LOADER_AUDIO_ENABLED=1` (les arguments JNI de cpal/oboe passent depuis le correctif FalsoJNI
+  ci-dessus), ou backend audio côté Rust.
 - Horloge réelle : la constante `__epoch` du boilerplate (`62135587294000000`) décale `CLOCK_REALTIME` de 9 506 s
   (~2 h 38) si le tick RTC compte bien depuis l'an 1 en UTC (vraie valeur `62135596800000000`, à vérifier au banc) ; sans effet sur le jeu (horodatage seulement), laissé tel quel.
