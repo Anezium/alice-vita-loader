@@ -53,6 +53,8 @@ extern "C" {
         if (__sync_lock_test_and_set(&_l_once_flag, 1) == 0) l_stub(__VA_ARGS__); \
     } while (0)
 
+void _log_init(void);
+
 void _log_print(int t, const char* fmt, ...)
                 __attribute__ ((format (printf, 2, 3)));
 

@@ -36,6 +36,7 @@
 extern so_module so_mod;
 
 void soloader_init_all() {
+    _log_init();
     l_notice("Alice Vita loader (so-loader for liblooking_glass.so), built " __DATE__ " " __TIME__);
     l_notice("config: SO_PATH=%s heap=%u MiB stack cap=%u KiB default=%u KiB ui=%u KiB "
              "vgl_threshold=%u MiB msaa=%d sdk=%d audio=%d cpus=%d",

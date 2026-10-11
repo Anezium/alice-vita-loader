@@ -30,6 +30,15 @@ static char buffer_a[2048];
 // Buffer B is used to compile the final log using the updated format string.
 static char buffer_b[2048];
 
+// Called first thing in soloader_init_all() so that two threads can never
+// race on the lazy creation below.
+void _log_init(void) {
+    if (!atomic_load_explicit(&_log_mutex_ready, memory_order_relaxed)) {
+        if (sceKernelCreateLwMutex(&_log_mutex, "log_lock", 0, 0, NULL) >= 0)
+            atomic_store_explicit(&_log_mutex_ready, true, memory_order_relaxed);
+    }
+}
+
 void _log_print(int t, const char* fmt, ...) {
     if (!atomic_load_explicit(&_log_mutex_ready, memory_order_relaxed)) {
         int ret = sceKernelCreateLwMutex(&_log_mutex, "log_lock", 0, 0, NULL);
@@ -74,7 +83,7 @@ void _log_print(int t, const char* fmt, ...) {
     va_start(list, fmt);
     sceClibVsnprintf(buffer_b, sizeof(buffer_b), buffer_a, list);
     va_end(list);
-    sceClibPrintf(buffer_b);
+    sceClibPrintf("%s", buffer_b);
 
     if (atomic_load_explicit(&_log_mutex_ready, memory_order_relaxed)) {
         sceKernelUnlockLwMutex(&_log_mutex, 1);
