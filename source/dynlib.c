@@ -393,7 +393,9 @@ so_default_dynlib default_dynlib[] = {
         { "calloc", (uintptr_t)&calloc },
         { "free", (uintptr_t)&free },
         { "malloc", (uintptr_t)&malloc },
-        { "memalign", (uintptr_t)&memalign },
+        { "memalign", (uintptr_t)&memalign_soloader },
+        { "posix_memalign", (uintptr_t)&posix_memalign_soloader }, // Rust allocator, align > 8
+        { "aligned_alloc", (uintptr_t)&aligned_alloc_soloader },
         { "memcmp", (uintptr_t)&memcmp },
         { "memcpy", (uintptr_t)&sceClibMemcpy },
         { "memmem", (uintptr_t)&memmem },

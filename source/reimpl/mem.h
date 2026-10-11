@@ -29,6 +29,12 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offs);
 
 int munmap(void *addr, size_t length);
 
+int posix_memalign_soloader(void **memptr, size_t alignment, size_t size);
+
+void *aligned_alloc_soloader(size_t alignment, size_t size);
+
+void *memalign_soloader(size_t alignment, size_t size);
+
 #ifdef __cplusplus
 };
 #endif
