@@ -117,7 +117,7 @@ bool file_load(const char * path, uint8_t ** buffer, size_t * size) {
 
     if (!*buffer) {
         l_error("file_load: Unable to allocate %d bytes of memory to load "
-                "the specified source file \"%s\".", path);
+                "the specified source file \"%s\".", (int)*size, path);
     #ifdef USE_SCELIBC_IO
         sceLibcBridge_fclose(f);
     #else
