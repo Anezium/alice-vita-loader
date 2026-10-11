@@ -32,6 +32,7 @@ extern "C"
 #include "utils/dialog.h"
 #include "reimpl/sys.h"
 #include <stdbool.h>
+#include "config.h"
 
 void __kuser_memory_barrier(void) {
 	__sync_synchronize();
@@ -66,8 +67,25 @@ void kuser_patch(void) {
 	}
 }
 
+static void kuser_report(void) {
+	// Rust/LLVM armv7 code uses ldrex/strex, never the Linux kuser helpers; a
+	// blind patch could rewrite a literal that only looks like 0xFFFF0FC0.
+	int hits = 0;
+	for (uint32_t addr = so_mod.text_base; addr < so_mod.text_base + so_mod.text_size; addr += 4) {
+		uint32_t v = *(uint32_t *)addr;
+		if (v == 0xFFFF0FC0 || v == 0xFFFF0FA0)
+			hits++;
+	}
+	l_notice("kuser helper scan: %d word(s) equal to 0xFFFF0FC0/0xFFFF0FA0 in .text, left untouched "
+	         "(LOADER_KUSER_PATCH=0)", hits);
+}
+
 void so_patch(void) {
+#if LOADER_KUSER_PATCH
 	kuser_patch();
+#else
+	kuser_report();
+#endif
 	// Sample hook with symbol name
 	// hook_addr((uintptr_t)so_symbol(&so_mod, "_ZN6glitch2os7Printer5printEPKcz"), (uintptr_t)&hookedFunction);
 	// Or with offset
