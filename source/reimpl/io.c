@@ -23,6 +23,7 @@
 
 #include "utils/logger.h"
 #include "utils/utils.h"
+#include "config.h"
 
 #include <errno.h>
 #include <stdint.h>
@@ -34,7 +35,36 @@
 // void stat_newlib_to_bionic(struct stat * src, stat64_bionic * dst);
 #include "reimpl/bits/_struct_converters.c"
 
+/*
+ * Looking Glass falls back to hard-coded Android locations when the
+ * LOOKING_GLASS_* environment variables are not usable (fork src/android.rs).
+ * Map the app-private ones onto the Vita data directory.
+ */
+static const char *android_prefixes[] = {
+    "/storage/emulated/0/Android/data/com.lookingglass.alice/files",
+    "/sdcard/Android/data/com.lookingglass.alice/files",
+    "/data/user/0/com.lookingglass.alice/files",
+    "/data/data/com.lookingglass.alice/files",
+};
+
+const char *path_android_to_vita(const char *path, char *buf, size_t buflen) {
+    if (!path || path[0] != '/')
+        return path;
+    for (size_t i = 0; i < sizeof(android_prefixes) / sizeof(android_prefixes[0]); i++) {
+        size_t n = strlen(android_prefixes[i]);
+        if (strncmp(path, android_prefixes[i], n) == 0 && (path[n] == 0 || path[n] == '/')) {
+            snprintf(buf, buflen, "%s%s", LOADER_STORAGE_DIR, path + n);
+            l_notice("path redirect: %s -> %s", path, buf);
+            return buf;
+        }
+    }
+    return path;
+}
+
 FILE * fopen_soloader(const char * filename, const char * mode) {
+    char redirected[PATH_MAX];
+    filename = path_android_to_vita(filename, redirected, sizeof(redirected));
+
     if (strcmp(filename, "/proc/cpuinfo") == 0) {
         return fopen_soloader("app0:/cpuinfo", mode);
     } else if (strcmp(filename, "/proc/meminfo") == 0) {
@@ -56,6 +86,8 @@ FILE * fopen_soloader(const char * filename, const char * mode) {
 }
 
 int open_soloader(const char * path, int oflag, ...) {
+    char redirected[PATH_MAX];
+    path = path_android_to_vita(path, redirected, sizeof(redirected));
     if (strcmp(path, "/proc/cpuinfo") == 0) {
         return open_soloader("app0:/cpuinfo", oflag);
     } else if (strcmp(path, "/proc/meminfo") == 0) {
@@ -94,6 +126,8 @@ int fstat_soloader(int fd, stat64_bionic * buf) {
 }
 
 int stat_soloader(const char * path, stat64_bionic * buf) {
+    char redirected[PATH_MAX];
+    path = path_android_to_vita(path, redirected, sizeof(redirected));
     if (strcmp(path, "/system/lib/libOpenSLES.so") == 0) {
         l_debug("stat(%s): returning 0 in case this is a check for OpenSLES support", path);
         return 0;
@@ -127,6 +161,8 @@ int close_soloader(int fd) {
 }
 
 DIR* opendir_soloader(char* _pathname) {
+    char redirected[PATH_MAX];
+    _pathname = (char *)path_android_to_vita(_pathname, redirected, sizeof(redirected));
     DIR* ret = opendir(_pathname);
     l_debug("opendir(\"%s\"): %p", _pathname, ret);
     return ret;
@@ -185,6 +221,14 @@ int ioctl_soloader(int fd, int request, ...) {
 int fsync_soloader(int fd) {
     int ret = fsync(fd);
     l_debug("fsync(%i): %i", fd, ret);
+    return ret;
+}
+
+int mkdir_soloader(const char *path, mode_t mode) {
+    char redirected[PATH_MAX];
+    path = path_android_to_vita(path, redirected, sizeof(redirected));
+    int ret = mkdir(path, mode);
+    l_debug("mkdir(%s): %i", path, ret);
     return ret;
 }
 

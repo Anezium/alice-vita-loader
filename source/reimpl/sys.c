@@ -362,13 +362,86 @@ int __atomic_cmpxchg(int old_value, int new_value, volatile int* ptr) {
     return __sync_val_compare_and_swap(ptr, old_value, new_value) != old_value;
 }
 
+/*
+ * Environment. The boilerplate getenv/setenv were stubs. Looking Glass reads
+ * LOOKING_GLASS_SETTINGS_DIR / LOOKING_GLASS_DATA to find its writable root and
+ * PK3 directory (fork src/android.rs), and Rust std reads RUST_MIN_STACK and
+ * TMPDIR. A small private table, guarded by a lightweight mutex.
+ */
+#define ENV_MAX 64
+static struct { char *name; char *value; } env_table[ENV_MAX];
+static SceKernelLwMutexWork env_mutex;
+static int env_ready = 0;
+
+static int env_find(const char *name) {
+    for (int i = 0; i < ENV_MAX; i++)
+        if (env_table[i].name && strcmp(env_table[i].name, name) == 0)
+            return i;
+    return -1;
+}
+
+static void env_set_locked(const char *name, const char *value) {
+    int i = env_find(name);
+    if (i < 0) {
+        for (i = 0; i < ENV_MAX && env_table[i].name; i++);
+        if (i == ENV_MAX) {
+            l_error("setenv(\"%s\"): environment table full (%d entries)", name, ENV_MAX);
+            return;
+        }
+        env_table[i].name = strdup(name);
+    }
+    // Old values are leaked on purpose: getenv() results must stay valid.
+    env_table[i].value = strdup(value);
+}
+
+void env_init(void) {
+    sceKernelCreateLwMutex(&env_mutex, "env_lock", 0, 0, NULL);
+    env_ready = 1;
+    env_set_locked("LOOKING_GLASS_SETTINGS_DIR", LOADER_STORAGE_DIR);
+    env_set_locked("LOOKING_GLASS_ANDROID_STORAGE", LOADER_STORAGE_DIR);
+    env_set_locked("LOOKING_GLASS_DATA", LOADER_PK3_DIR);
+    env_set_locked("TMPDIR", LOADER_STORAGE_DIR "/tmp");
+    env_set_locked("HOME", LOADER_STORAGE_DIR);
+    env_set_locked("RUST_MIN_STACK", LOADER_RUST_MIN_STACK);
+    for (int i = 0; i < ENV_MAX && env_table[i].name; i++)
+        l_notice("env: %s=%s", env_table[i].name, env_table[i].value);
+}
+
 char * getenv_soloader(const char * var) {
-    l_warn("getenv(\"%s\"): not implemented.", var);
-    return NULL;
+    if (!var || !env_ready) return NULL;
+    sceKernelLockLwMutex(&env_mutex, 1, NULL);
+    int i = env_find(var);
+    char *ret = i >= 0 ? env_table[i].value : NULL;
+    sceKernelUnlockLwMutex(&env_mutex, 1);
+    l_debug("getenv(\"%s\") = %s", var, ret ? ret : "(null)");
+    return ret;
 }
 
 int setenv_soloader(const char * name, const char * value, int overwrite) {
-    l_warn("setenv(\"%s\", \"%s\"): not implemented.", name, value);
+    if (!name || !*name || strchr(name, '=') || !value) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (strcmp(name, "RUST_MIN_STACK") == 0) {
+        // The fork asks 16 MiB for every std thread; keep the loader value.
+        l_notice("setenv(\"RUST_MIN_STACK\", \"%s\") ignored, keeping %s (config.h)",
+                 value, LOADER_RUST_MIN_STACK);
+        return 0;
+    }
+    sceKernelLockLwMutex(&env_mutex, 1, NULL);
+    if (overwrite || env_find(name) < 0)
+        env_set_locked(name, value);
+    sceKernelUnlockLwMutex(&env_mutex, 1);
+    l_notice("setenv(\"%s\", \"%s\", %d)", name, value, overwrite);
+    return 0;
+}
+
+int unsetenv_soloader(const char * name) {
+    if (!name) { errno = EINVAL; return -1; }
+    sceKernelLockLwMutex(&env_mutex, 1, NULL);
+    int i = env_find(name);
+    if (i >= 0) { env_table[i].name = NULL; env_table[i].value = NULL; }
+    sceKernelUnlockLwMutex(&env_mutex, 1);
     return 0;
 }
 

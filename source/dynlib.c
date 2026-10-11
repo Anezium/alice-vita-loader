@@ -505,7 +505,7 @@ so_default_dynlib default_dynlib[] = {
         { "lseek", (uintptr_t)&lseek },
         { "lseek64", (uintptr_t)&lseek64_soloader },
         { "lstat", (uintptr_t)&lstat },
-        { "mkdir", (uintptr_t)&mkdir },
+        { "mkdir", (uintptr_t)&mkdir_soloader },
 #ifndef NDK_PORT
         { "pipe", (uintptr_t)&pipe },
         { "read", (uintptr_t)&read },
@@ -1088,6 +1088,7 @@ so_default_dynlib default_dynlib[] = {
         // Env
         { "getenv", (uintptr_t)&getenv_soloader },
         { "setenv", (uintptr_t)&setenv_soloader },
+        { "unsetenv", (uintptr_t)&unsetenv_soloader },
 
 
         // Jmp

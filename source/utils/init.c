@@ -17,6 +17,7 @@
 
 #include <reimpl/controls.h>
 #include "reimpl/futex.h"
+#include "reimpl/sys.h"
 #include "config.h"
 
 #include <string.h>
@@ -45,9 +46,11 @@ void soloader_init_all() {
              (unsigned)(LOADER_MAIN_STACK_SIZE >> 10), (unsigned)(LOADER_VGL_RAM_THRESHOLD >> 20),
              LOADER_VGL_MSAA, LOADER_ANDROID_SDK, LOADER_AUDIO_ENABLED, LOADER_NPROCESSORS);
 
-    // Rust std takes futex-based locks as soon as the .so runs.
+    // Rust std takes futex-based locks as soon as it runs; the environment
+    // must exist before Looking Glass reads LOOKING_GLASS_* variables.
     if (futex_init() < 0)
         fatal_error("Error: could not create the futex emulation objects.");
+    env_init();
 
 	// Launch `app0:configurator.bin` on `-config` init param
     sceAppUtilInit(&(SceAppUtilInitParam){}, &(SceAppUtilBootParam){});

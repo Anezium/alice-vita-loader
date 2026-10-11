@@ -120,6 +120,9 @@ int fsync_soloader(int fd);
 
 int64_t lseek64_soloader(int fd, int64_t offset, int whence);
 
+const char *path_android_to_vita(const char *path, char *buf, size_t buflen);
+int mkdir_soloader(const char *path, mode_t mode);
+
 #include <sys/types.h>
 ssize_t write_soloader(int fd, const void *buf, size_t count);
 ssize_t writev_soloader(int fd, const void *iov, int iovcnt);

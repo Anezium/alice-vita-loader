@@ -56,6 +56,10 @@ void syslog_soloader(int priority, const char *fmt, ...);
 
 ssize_t sendfile_soloader(int out_fd, int in_fd, void *offset, size_t count);
 
+void env_init(void);
+
+int unsetenv_soloader(const char * name);
+
 ssize_t getrandom_soloader(void *buf, size_t buflen, unsigned int flags);
 
 long sysconf_soloader(int name);
