@@ -44,13 +44,18 @@ void gl_init() {
     static const SceGxmMultisampleMode msaa_modes[] = {
         SCE_GXM_MULTISAMPLE_NONE, SCE_GXM_MULTISAMPLE_2X, SCE_GXM_MULTISAMPLE_4X
     };
-    GLboolean ok = vglInitExtended(LOADER_VGL_LEGACY_POOL, LOADER_SCREEN_W, LOADER_SCREEN_H,
-                                   LOADER_VGL_RAM_THRESHOLD, msaa_modes[LOADER_VGL_MSAA % 3]);
-    l_notice("vglInitExtended(pool=%d, %dx%d, threshold=%u MiB, msaa=%d) = %d",
+    /* vitaGL returns `res_fallback` here (source/vgl.c, vglInitWithCustomSizes): GL_FALSE on a
+     * normal init, GL_TRUE only when the requested resolution exceeded the display maximum and
+     * was clamped. It never signals failure through this value; the only GL_FALSE early return
+     * is "already inited". Treating GL_FALSE as an error aborted every first run on hardware
+     * (2026-10-11, "vitaGL initialisation failed (not enough memory?)"). */
+    GLboolean res_fallback = vglInitExtended(LOADER_VGL_LEGACY_POOL, LOADER_SCREEN_W, LOADER_SCREEN_H,
+                                             LOADER_VGL_RAM_THRESHOLD, msaa_modes[LOADER_VGL_MSAA % 3]);
+    l_notice("vglInitExtended(pool=%d, %dx%d, threshold=%u MiB, msaa=%d) = %d (GL_FALSE is the normal result)",
              LOADER_VGL_LEGACY_POOL, LOADER_SCREEN_W, LOADER_SCREEN_H,
-             (unsigned)(LOADER_VGL_RAM_THRESHOLD >> 20), LOADER_VGL_MSAA, ok);
-    if (!ok)
-        fatal_error("Error: vitaGL initialisation failed (not enough memory?).");
+             (unsigned)(LOADER_VGL_RAM_THRESHOLD >> 20), LOADER_VGL_MSAA, res_fallback);
+    if (res_fallback == GL_TRUE)
+        l_warn("vitaGL clamped %dx%d to the display maximum", LOADER_SCREEN_W, LOADER_SCREEN_H);
 }
 
 void gl_swap() {

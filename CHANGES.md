@@ -295,3 +295,7 @@ canaux, format). Ils apparaissent dans le log, et avec `LOADER_AUDIO_ENABLED=1` 
   ci-dessus), ou backend audio côté Rust.
 - Horloge réelle : la constante `__epoch` du boilerplate (`62135587294000000`) décale `CLOCK_REALTIME` de 9 506 s
   (~2 h 38) si le tick RTC compte bien depuis l'an 1 en UTC (vraie valeur `62135596800000000`, à vérifier au banc) ; sans effet sur le jeu (horodatage seulement), laissé tel quel.
+
+## 2026-10-11 — gl_init: vglInitExtended return value
+
+`vglInitExtended` returns GL_FALSE on a normal init and GL_TRUE only when the resolution was clamped (vitaGL `source/vgl.c`, `res_fallback`). `gl_init` treated GL_FALSE as a failure and aborted with "vitaGL initialisation failed (not enough memory?)" on the first run on hardware. Now logged, never fatal.
