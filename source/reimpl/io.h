@@ -120,6 +120,15 @@ int fsync_soloader(int fd);
 
 int64_t lseek64_soloader(int fd, int64_t offset, int whence);
 
+// bionic stdin/stdout/stderr (__sF) and the stdio calls that must recognise them
+#include <stdarg.h>
+extern uint8_t sF_bionic[3][84];
+int vfprintf_soloader(FILE *f, const char *fmt, va_list ap);
+int fprintf_soloader(FILE *f, const char *fmt, ...);
+int fputc_soloader(int c, FILE *f);
+size_t fwrite_soloader(const void *ptr, size_t size, size_t nmemb, FILE *f);
+int fflush_soloader(FILE *f);
+
 #ifdef __cplusplus
 };
 #endif

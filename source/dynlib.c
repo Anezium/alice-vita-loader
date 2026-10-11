@@ -131,8 +131,6 @@ extern const char *BIONIC_ctype_;
 extern const short *BIONIC_tolower_tab_;
 extern const short *BIONIC_toupper_tab_;
 
-static FILE __sF_fake[3];
-
 void *dlsym_soloader(void * handle, const char * symbol);
 void *dlopen_soloader(const char * filename, int flags);
 int dlclose_soloader(void * handle);
@@ -216,7 +214,7 @@ so_default_dynlib default_dynlib[] = {
         { "__gxx_personality_v0", (uintptr_t)&__gxx_personality_v0 },
         { "__isinf", (uintptr_t)&ret0 },
         { "__page_size", (uintptr_t)&__page_size },
-        { "__sF", (uintptr_t)&__sF_fake },
+        { "__sF", (uintptr_t)&sF_bionic }, // bionic-sized FILE[3], see io.c
         { "__srget", (uintptr_t)&__srget },
         { "__stack_chk_fail", (uintptr_t)&__stack_chk_fail_soloader },
         { "__stack_chk_guard", (uintptr_t)&__stack_chk_guard },
@@ -440,12 +438,12 @@ so_default_dynlib default_dynlib[] = {
             { "fdopen", (uintptr_t)&sceLibcBridge_fdopen },
             { "feof", (uintptr_t)&sceLibcBridge_feof },
             { "ferror", (uintptr_t)&sceLibcBridge_ferror },
-            { "fflush", (uintptr_t)&sceLibcBridge_fflush },
+            { "fflush", (uintptr_t)&fflush_soloader },
             { "fgetc", (uintptr_t)&sceLibcBridge_fgetc },
             { "fgetpos", (uintptr_t)&sceLibcBridge_fgetpos },
             { "fgets", (uintptr_t)&sceLibcBridge_fgets },
             { "fileno", (uintptr_t)&sceLibcBridge_fileno },
-            { "fputc", (uintptr_t)&sceLibcBridge_fputc },
+            { "fputc", (uintptr_t)&fputc_soloader },
             { "fputs", (uintptr_t)&sceLibcBridge_fputs },
             { "fread", (uintptr_t)&sceLibcBridge_fread },
             { "freopen", (uintptr_t)&sceLibcBridge_freopen },
@@ -453,7 +451,7 @@ so_default_dynlib default_dynlib[] = {
             { "fsetpos", (uintptr_t)&sceLibcBridge_fsetpos },
             { "ftell", (uintptr_t)&sceLibcBridge_ftell },
             { "fwide", (uintptr_t)&sceLibcBridge_fwide },
-            { "fwrite", (uintptr_t)&sceLibcBridge_fwrite },
+            { "fwrite", (uintptr_t)&fwrite_soloader },
             { "getc", (uintptr_t)&sceLibcBridge_getc },
             { "getwc", (uintptr_t)&sceLibcBridge_getwc },
             { "putc", (uintptr_t)&sceLibcBridge_putc },
@@ -467,12 +465,12 @@ so_default_dynlib default_dynlib[] = {
             { "fdopen", (uintptr_t)&fdopen },
             { "feof", (uintptr_t)&feof },
             { "ferror", (uintptr_t)&ferror },
-            { "fflush", (uintptr_t)&fflush },
+            { "fflush", (uintptr_t)&fflush_soloader },
             { "fgetc", (uintptr_t)&fgetc },
             { "fgetpos", (uintptr_t)&fgetpos },
             { "fgets", (uintptr_t)&fgets },
             { "fileno", (uintptr_t)&fileno },
-            { "fputc", (uintptr_t)&fputc },
+            { "fputc", (uintptr_t)&fputc_soloader },
             { "fputs", (uintptr_t)&fputs },
             { "fread", (uintptr_t)&fread },
             { "freopen", (uintptr_t)&freopen },
@@ -480,7 +478,7 @@ so_default_dynlib default_dynlib[] = {
             { "fsetpos", (uintptr_t)&fsetpos },
             { "ftell", (uintptr_t)&ftell },
             { "fwide", (uintptr_t)&fwide },
-            { "fwrite", (uintptr_t)&fwrite },
+            { "fwrite", (uintptr_t)&fwrite_soloader },
             { "getc", (uintptr_t)&getc },
             { "getwc", (uintptr_t)&getwc },
             { "putc", (uintptr_t)&putc },
@@ -539,15 +537,15 @@ so_default_dynlib default_dynlib[] = {
         { "swprintf", (uintptr_t)&swprintf },
 
         #ifdef USE_SCELIBC_IO
-            { "fprintf", (uintptr_t)&sceLibcBridge_fprintf },
+            { "fprintf", (uintptr_t)&fprintf_soloader },
             { "fscanf", (uintptr_t)&sceLibcBridge_fscanf },
             { "sscanf", (uintptr_t)&sceLibcBridge_sscanf },
-            { "vfprintf", (uintptr_t)&sceLibcBridge_vfprintf },
+            { "vfprintf", (uintptr_t)&vfprintf_soloader },
         #else
-            { "fprintf", (uintptr_t)&fprintf },
+            { "fprintf", (uintptr_t)&fprintf_soloader },
             { "fscanf", (uintptr_t)&fscanf },
             { "sscanf", (uintptr_t)&sscanf },
-            { "vfprintf", (uintptr_t)&vfprintf },
+            { "vfprintf", (uintptr_t)&vfprintf_soloader },
         #endif
 
 
@@ -1228,10 +1226,6 @@ static void report_unresolved(so_module *mod) {
 }
 
 void resolve_imports(so_module* mod) {
-    __sF_fake[0] = *stdin;
-    __sF_fake[1] = *stdout;
-    __sF_fake[2] = *stderr;
-
     so_resolve(mod, default_dynlib, sizeof(default_dynlib), 0);
     report_unresolved(mod);
 }

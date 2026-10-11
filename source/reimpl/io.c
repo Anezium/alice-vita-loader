@@ -26,6 +26,7 @@
 
 #include <errno.h>
 #include <stdint.h>
+#include <psp2/kernel/clib.h>
 
 // Includes the following inline utilities:
 // int oflags_musl_to_newlib(int flags);
@@ -202,4 +203,94 @@ int64_t lseek64_soloader(int fd, int64_t offset, int whence) {
     if (ret < 0)
         l_debug("lseek64(%i, %lld, %i): %li", fd, offset, whence, (long)ret);
     return (int64_t)ret;
+}
+
+/* Output written by the .so to its stdout/stderr goes to the loader log. */
+static void log_std_stream(int fd, const void *buf, size_t count) {
+    const char *p = (const char *)buf;
+    while (count > 0) {
+        int chunk = count > 1024 ? 1024 : (int)count;
+        sceClibPrintf("[%s] %.*s", fd == 2 ? "stderr" : "stdout", chunk, p);
+        if (p[chunk - 1] != '\n' && count <= 1024)
+            sceClibPrintf("\n");
+        p += chunk;
+        count -= chunk;
+    }
+}
+
+/*
+ * bionic's stdin/stdout/stderr are &__sF[0..2], with sizeof(FILE) == 84 on
+ * 32-bit bionic. Exporting an array of newlib FILEs meant that &__sF[2]
+ * computed by the .so did not point at the third element (and with
+ * USE_SCELIBC_IO a newlib FILE* was handed to SceLibc). Export a bionic-sized
+ * array and recognise its three slots in the stdio wrappers.
+ */
+#define BIONIC_FILE_SIZE 84
+uint8_t sF_bionic[3][BIONIC_FILE_SIZE] __attribute__((aligned(8)));
+
+static int bionic_std_stream(const void *f) {
+    for (int i = 0; i < 3; i++)
+        if (f == sF_bionic[i]) return i;
+    return -1;
+}
+
+int vfprintf_soloader(FILE *f, const char *fmt, va_list ap) {
+    int s = bionic_std_stream(f);
+    if (s >= 0) {
+        char text[1024];
+        int n = vsnprintf(text, sizeof(text), fmt, ap);
+        if (s == 0) return -1;
+        log_std_stream(s, text, n < (int)sizeof(text) ? (size_t)(n > 0 ? n : 0) : sizeof(text) - 1);
+        return n;
+    }
+#ifdef USE_SCELIBC_IO
+    return sceLibcBridge_vfprintf(f, fmt, ap);
+#else
+    return vfprintf(f, fmt, ap);
+#endif
+}
+
+int fprintf_soloader(FILE *f, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    int r = vfprintf_soloader(f, fmt, ap);
+    va_end(ap);
+    return r;
+}
+
+int fputc_soloader(int c, FILE *f) {
+    int s = bionic_std_stream(f);
+    if (s >= 0) {
+        char ch = (char)c;
+        if (s) log_std_stream(s, &ch, 1);
+        return (unsigned char)c;
+    }
+#ifdef USE_SCELIBC_IO
+    return sceLibcBridge_fputc(c, f);
+#else
+    return fputc(c, f);
+#endif
+}
+
+size_t fwrite_soloader(const void *ptr, size_t size, size_t nmemb, FILE *f) {
+    int s = bionic_std_stream(f);
+    if (s >= 0) {
+        if (s) log_std_stream(s, ptr, size * nmemb);
+        return nmemb;
+    }
+#ifdef USE_SCELIBC_IO
+    return sceLibcBridge_fwrite(ptr, size, nmemb, f);
+#else
+    return fwrite(ptr, size, nmemb, f);
+#endif
+}
+
+int fflush_soloader(FILE *f) {
+    if (!f || bionic_std_stream(f) >= 0)
+        return 0;
+#ifdef USE_SCELIBC_IO
+    return sceLibcBridge_fflush(f);
+#else
+    return fflush(f);
+#endif
 }
