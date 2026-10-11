@@ -226,6 +226,61 @@ ssize_t write_soloader(int fd, const void *buf, size_t count) {
     return write(fd, buf, count);
 }
 
+typedef struct { void *iov_base; size_t iov_len; } iovec_bionic;
+
+ssize_t writev_soloader(int fd, const void *iov_, int iovcnt) {
+    const iovec_bionic *iov = (const iovec_bionic *)iov_;
+    ssize_t total = 0;
+    for (int i = 0; i < iovcnt; i++) {
+        if (!iov[i].iov_len) continue;
+        ssize_t r = write_soloader(fd, iov[i].iov_base, iov[i].iov_len);
+        if (r < 0) return total ? total : r;
+        total += r;
+        if ((size_t)r < iov[i].iov_len) break;
+    }
+    return total;
+}
+
+ssize_t readv_soloader(int fd, const void *iov_, int iovcnt) {
+    const iovec_bionic *iov = (const iovec_bionic *)iov_;
+    ssize_t total = 0;
+    for (int i = 0; i < iovcnt; i++) {
+        if (!iov[i].iov_len) continue;
+        ssize_t r = read(fd, iov[i].iov_base, iov[i].iov_len);
+        if (r < 0) return total ? total : r;
+        total += r;
+        if ((size_t)r < iov[i].iov_len) break; // short read: stop like the kernel would
+    }
+    return total;
+}
+
+ssize_t readlink_soloader(const char *path, char *buf, size_t bufsiz) {
+    // std::env::current_exe() reads /proc/self/exe: answer with the .so path.
+    if (path && (strcmp(path, "/proc/self/exe") == 0)) {
+        size_t n = strlen(SO_PATH);
+        if (n > bufsiz) n = bufsiz;
+        memcpy(buf, SO_PATH, n); // readlink does not NUL-terminate
+        l_notice("readlink(/proc/self/exe) -> %s", SO_PATH);
+        return (ssize_t)n;
+    }
+    l_stub("readlink(\"%s\"): no symlinks on the Vita, EINVAL", path ? path : "(null)");
+    errno = EINVAL;
+    return -1;
+}
+
+int dirfd_soloader(DIR *dir) {
+    int fd = dirfd(dir);
+    if (fd < 0)
+        l_stub("dirfd(%p): newlib returned %d (no fd behind Vita DIR handles)", dir, fd);
+    return fd;
+}
+
+int fchmod_soloader(int fd, mode_t mode) {
+    // No POSIX permissions on Vita file systems: report success.
+    l_stub_once("fchmod(%d, 0%o): no permissions on Vita, returning 0 (logged once)", fd, (unsigned)mode);
+    return 0;
+}
+
 /*
  * bionic's stdin/stdout/stderr are &__sF[0..2], with sizeof(FILE) == 84 on
  * 32-bit bionic. Exporting an array of newlib FILEs meant that &__sF[2]

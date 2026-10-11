@@ -122,6 +122,11 @@ int64_t lseek64_soloader(int fd, int64_t offset, int whence);
 
 #include <sys/types.h>
 ssize_t write_soloader(int fd, const void *buf, size_t count);
+ssize_t writev_soloader(int fd, const void *iov, int iovcnt);
+ssize_t readv_soloader(int fd, const void *iov, int iovcnt);
+ssize_t readlink_soloader(const char *path, char *buf, size_t bufsiz);
+int dirfd_soloader(DIR *dir);
+int fchmod_soloader(int fd, mode_t mode);
 
 // bionic stdin/stdout/stderr (__sF) and the stdio calls that must recognise them
 #include <stdarg.h>

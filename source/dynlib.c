@@ -56,6 +56,8 @@
 #include "reimpl/egl.h"
 #include "reimpl/time64.h"
 #include "reimpl/asset_manager.h"
+#include "reimpl/android.h"
+#include "config.h"
 
 #ifdef NDK_PORT
 #include <falso_ndk/FalsoNDK.h>
@@ -357,6 +359,7 @@ so_default_dynlib default_dynlib[] = {
         { "tan", (uintptr_t)&tan },
         { "tanf", (uintptr_t)&tanf },
         { "tanh", (uintptr_t)&tanh },
+        { "tanhf", (uintptr_t)&tanhf }, // new import (game audio mixer)
         { "trunc", (uintptr_t)&trunc },
         { "truncf", (uintptr_t)&truncf },
 
@@ -839,6 +842,8 @@ so_default_dynlib default_dynlib[] = {
         { "SL_IID_PREFETCHSTATUS", (uintptr_t)&SL_IID_PREFETCHSTATUS },
         { "SL_IID_SEEK", (uintptr_t)&SL_IID_SEEK },
         { "SL_IID_VOLUME", (uintptr_t)&SL_IID_VOLUME },
+        { "SL_IID_RECORD", (uintptr_t)&SL_IID_RECORD }, // new import (oboe input path)
+        { "SL_IID_ANDROIDCONFIGURATION", (uintptr_t)&SL_IID_ANDROIDCONFIGURATION }, // new import
         { "slCreateEngine", (uintptr_t)&slCreateEngine },
 
 
@@ -955,6 +960,7 @@ so_default_dynlib default_dynlib[] = {
         { "dlerror", (uintptr_t)&dlerror_soloader }, // was ret0
         { "dlopen", (uintptr_t)&dlopen_soloader },   // was ret1
         { "dlsym", (uintptr_t)&dlsym_soloader },     // returned &table[i].func
+        { "dl_iterate_phdr", (uintptr_t)&dl_iterate_phdr_soloader }, // new import (libunwind, backtrace)
 
 
         // Errno
@@ -1109,6 +1115,37 @@ so_default_dynlib default_dynlib[] = {
         { "inflateReset", (uintptr_t)&inflateReset },
         { "inflateReset2", (uintptr_t)&inflateReset2 },
         { "uncompress", (uintptr_t)&uncompress },
+
+
+        // Imports of liblooking_glass.so absent from the boilerplate
+        // (spike-c/SYMBOLS.md section 7, "Nouveaux"; getrandom and
+        // posix_memalign are served above). Implementations, or stubs that
+        // log; none is silent.
+        { "__register_atfork", (uintptr_t)&__register_atfork_soloader },
+        { "android_set_abort_message", (uintptr_t)&android_set_abort_message_soloader },
+        { "clock_nanosleep", (uintptr_t)&clock_nanosleep_soloader },
+        { "closelog", (uintptr_t)&closelog_soloader },
+        { "dirfd", (uintptr_t)&dirfd_soloader },
+        { "fchmod", (uintptr_t)&fchmod_soloader },
+        { "gettid", (uintptr_t)&gettid_soloader },
+        { "openlog", (uintptr_t)&openlog_soloader },
+        { "readlink", (uintptr_t)&readlink_soloader },
+        { "readv", (uintptr_t)&readv_soloader },
+        { "sendfile", (uintptr_t)&sendfile_soloader },
+        { "syslog", (uintptr_t)&syslog_soloader },
+        { "writev", (uintptr_t)&writev_soloader },
+#ifndef NDK_PORT
+        { "ANativeWindow_fromSurface", (uintptr_t)&ANativeWindow_fromSurface_soloader },
+        { "ANativeWindow_release", (uintptr_t)&ANativeWindow_release_soloader },
+        { "ANativeWindow_acquire", (uintptr_t)&ANativeWindow_acquire_soloader },
+        { "ANativeWindow_setBuffersGeometry", (uintptr_t)&ANativeWindow_setBuffersGeometry_soloader },
+        { "ANativeWindow_getWidth", (uintptr_t)&ANativeWindow_getWidth_soloader },
+        { "ANativeWindow_getHeight", (uintptr_t)&ANativeWindow_getHeight_soloader },
+#endif
+        // Deliberately absent: copy_file_range (weak, API 34) and splice (weak).
+        // Rust std tests their address (R_ARM_GLOB_DAT); so_resolve leaves an
+        // unresolved GLOB_DAT at 0, std then tries syscall(391/340), which
+        // syscall_soloader answers with ENOSYS, and falls back to read/write.
 };
 
 /*

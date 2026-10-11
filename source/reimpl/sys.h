@@ -22,6 +22,7 @@ extern "C" {
 #include <sys/time.h>
 #include <sys/types.h>
 #include <stddef.h>
+#include <time.h>
 
 #define PAGE_SIZE 4096
 
@@ -40,6 +41,20 @@ long syscall_soloader(long n, long a1, long a2, long a3, long a4, long a5, long 
 int gettid_soloader(void);
 
 int prctl_soloader(int option, unsigned long a2, unsigned long a3, unsigned long a4, unsigned long a5);
+
+int clock_nanosleep_soloader(clockid_t clock_id, int flags, const struct timespec *req, struct timespec *rem);
+
+int __register_atfork_soloader(void (*prepare)(void), void (*parent)(void), void (*child)(void), void *dso);
+
+void android_set_abort_message_soloader(const char *msg);
+
+void openlog_soloader(const char *ident, int option, int facility);
+
+void closelog_soloader(void);
+
+void syslog_soloader(int priority, const char *fmt, ...);
+
+ssize_t sendfile_soloader(int out_fd, int in_fd, void *offset, size_t count);
 
 ssize_t getrandom_soloader(void *buf, size_t buflen, unsigned int flags);
 

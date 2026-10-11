@@ -128,6 +128,7 @@ set(SOURCES
     source/java.c
     source/patch.c
     source/reimpl/bits/_ctype.c
+    source/reimpl/android.c
     source/reimpl/errno.c
     source/reimpl/futex.c
     source/reimpl/io.c

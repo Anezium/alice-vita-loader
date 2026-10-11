@@ -11,6 +11,9 @@
 #include "reimpl/futex.h"
 #include "config.h"
 
+#include <stdarg.h>
+#include <stdio.h>
+
 #include <psp2/kernel/rng.h>
 
 #include <sys/errno.h>
@@ -234,6 +237,68 @@ long sysconf_soloader(int name) {
             errno = EINVAL;
             return -1;
     }
+}
+
+#define BIONIC_TIMER_ABSTIME 1
+
+int clock_nanosleep_soloader(clockid_t clock_id, int flags,
+                             const struct timespec *req, struct timespec *rem) {
+    if (!req || req->tv_nsec < 0 || req->tv_nsec >= 1000000000L)
+        return 22; /* EINVAL (bionic), returned not set in errno */
+    int64_t us = (int64_t)req->tv_sec * 1000000LL + req->tv_nsec / 1000;
+    if (flags & BIONIC_TIMER_ABSTIME) {
+        struct timespec now;
+        clock_gettime_soloader(clock_id, &now);
+        us -= (int64_t)now.tv_sec * 1000000LL + now.tv_nsec / 1000;
+    }
+    if (us > 0) {
+        while (us > 0x7fffffff) {
+            sceKernelDelayThread(0x7fffffff);
+            us -= 0x7fffffff;
+        }
+        sceKernelDelayThread((SceUInt)us);
+    }
+    if (rem) {
+        rem->tv_sec = 0;
+        rem->tv_nsec = 0;
+    }
+    return 0; // clock_nanosleep returns an error number, never sets errno
+}
+
+int __register_atfork_soloader(void (*prepare)(void), void (*parent)(void),
+                               void (*child)(void), void *dso) {
+    // fork() does not exist on the Vita, so the handlers can never run.
+    l_stub_once("__register_atfork(%p, %p, %p): accepted, fork() never happens on Vita",
+                prepare, parent, child);
+    return 0;
+}
+
+void android_set_abort_message_soloader(const char *msg) {
+    l_fatal("android_set_abort_message: %s", msg ? msg : "(null)");
+}
+
+void openlog_soloader(const char *ident, int option, int facility) {
+    l_notice("openlog(\"%s\", 0x%x, 0x%x): syslog goes to the loader log", ident ? ident : "", option, facility);
+}
+
+void closelog_soloader(void) {
+    l_notice("closelog()");
+}
+
+void syslog_soloader(int priority, const char *fmt, ...) {
+    char text[1024];
+    va_list list;
+    va_start(list, fmt);
+    vsnprintf(text, sizeof(text), fmt, list);
+    va_end(list);
+    l_error("[syslog prio %d] %s", priority, text);
+}
+
+ssize_t sendfile_soloader(int out_fd, int in_fd, void *offset, size_t count) {
+    // Strong import (std::io::copy fast path); ENOSYS makes std fall back to read/write.
+    l_stub_once("sendfile(%d, %d, %u): ENOSYS, std falls back to read/write", out_fd, in_fd, (unsigned)count);
+    errno = ENOSYS;
+    return -1;
 }
 
 void __stack_chk_fail_soloader() {
