@@ -129,6 +129,7 @@ set(SOURCES
     source/patch.c
     source/reimpl/bits/_ctype.c
     source/reimpl/android.c
+    source/reimpl/egl.c
     source/reimpl/errno.c
     source/reimpl/futex.c
     source/reimpl/io.c

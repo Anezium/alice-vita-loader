@@ -3,6 +3,9 @@
  *
  * This software may be modified and distributed under the terms
  * of the MIT license. See the LICENSE file for details.
+ *
+ * Modified for the Alice Vita loader (spike-c/loader, derived from
+ * soloader-boilerplate rev 0a382f0ebce348c8cdc68f32fb5fa3186baddc38, MIT).
  */
 
 /**
@@ -21,43 +24,45 @@
 extern "C" {
 #endif
 
-EGLBoolean eglInitialize(EGLDisplay dpy, EGLint *major, EGLint *minor);
+// Alice loader: EGL layer served to the .so (names prefixed so they never
+// clash with vitaGL's own egl.c, which stays in libvitaGL.a).
+EGLDisplay alice_eglGetDisplay(void *native_display);
+EGLBoolean alice_eglInitialize(EGLDisplay dpy, EGLint *major, EGLint *minor);
+EGLBoolean alice_eglTerminate(EGLDisplay dpy);
+EGLBoolean alice_eglBindAPI(EGLenum api);
+EGLBoolean alice_eglChooseConfig(EGLDisplay dpy, const EGLint *attrib_list, EGLConfig *configs, EGLint config_size, EGLint *num_config);
+EGLBoolean alice_eglGetConfigs(EGLDisplay dpy, EGLConfig *configs, EGLint config_size, EGLint *num_config);
+EGLBoolean alice_eglGetConfigAttrib(EGLDisplay display, EGLConfig config, EGLint attribute, EGLint *value);
+EGLContext alice_eglCreateContext(EGLDisplay dpy, EGLConfig config, EGLContext share_context, const EGLint *attrib_list);
+EGLBoolean alice_eglDestroyContext(EGLDisplay dpy, EGLContext ctx);
+EGLSurface alice_eglCreateWindowSurface(EGLDisplay dpy, EGLConfig config, void *win, const EGLint *attrib_list);
+EGLSurface alice_eglCreatePbufferSurface(EGLDisplay dpy, EGLConfig config, const EGLint *attrib_list);
+EGLSurface alice_eglCreatePixmapSurface(EGLDisplay dpy, EGLConfig config, void *pixmap, const EGLint *attrib_list);
+EGLBoolean alice_eglDestroySurface(EGLDisplay dpy, EGLSurface surface);
+EGLBoolean alice_eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface read, EGLContext ctx);
+EGLContext alice_eglGetCurrentContext(void);
+EGLDisplay alice_eglGetCurrentDisplay(void);
+EGLSurface alice_eglGetCurrentSurface(EGLint readdraw);
+EGLBoolean alice_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface);
+EGLBoolean alice_eglSwapInterval(EGLDisplay dpy, EGLint interval);
+EGLint alice_eglGetError(void);
+const char *alice_eglQueryString(EGLDisplay display, EGLint name);
+EGLBoolean alice_eglQueryContext(EGLDisplay dpy, EGLContext ctx, EGLint attribute, EGLint *value);
+EGLBoolean alice_eglQuerySurface(EGLDisplay dpy, EGLSurface surface, EGLint attribute, EGLint *value);
+EGLBoolean alice_eglSurfaceAttrib(EGLDisplay dpy, EGLSurface surface, EGLint attribute, EGLint value);
+EGLBoolean alice_eglBindTexImage(EGLDisplay dpy, EGLSurface surface, EGLint buffer);
+EGLBoolean alice_eglReleaseTexImage(EGLDisplay dpy, EGLSurface surface, EGLint buffer);
+EGLBoolean alice_eglCopyBuffers(EGLDisplay dpy, EGLSurface surface, void *target);
+EGLBoolean alice_eglWaitGL(void);
+EGLBoolean alice_eglWaitNative(EGLint engine);
+void *alice_eglGetProcAddress(const char *procname);
 
-EGLBoolean eglGetConfigAttrib(EGLDisplay display, EGLConfig config,
-                              EGLint attribute, EGLint *value);
+void alice_glBlendColor(GLfloat r, GLfloat g, GLfloat b, GLfloat a);
+void alice_glDetachShader(GLuint program, GLuint shader);
+void alice_glTexParameterfv(GLenum target, GLenum pname, const GLfloat *params);
 
-EGLBoolean eglQueryContext(EGLDisplay dpy, EGLContext ctx, EGLint attribute,
-                           EGLint *value);
-
-EGLBoolean eglQuerySurface(EGLDisplay dpy, EGLSurface eglSurface,
-                           EGLint attribute, EGLint *value);
-
-EGLBoolean eglChooseConfig(EGLDisplay dpy, const EGLint * attrib_list,
-                           EGLConfig * configs, EGLint config_size,
-                           EGLint * num_config);
-
-EGLContext eglCreateContext(EGLDisplay dpy, EGLConfig config,
-                            EGLContext share_context,
-                            const EGLint * attrib_list);
-
-EGLSurface eglCreateWindowSurface(EGLDisplay dpy, EGLConfig config, void * win,
-                                  const EGLint * attrib_list);
-
-EGLBoolean eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface read,
-                          EGLContext ctx);
-
-EGLBoolean eglDestroyContext(EGLDisplay dpy, EGLContext ctx);
-
-EGLBoolean eglDestroySurface(EGLDisplay dpy, EGLSurface surface);
-
-EGLBoolean eglTerminate(EGLDisplay dpy);
-
-EGLContext eglGetCurrentContext (void);
-
-EGLBoolean eglGetConfigs(EGLDisplay display, EGLConfig * configs,
-                         EGLint config_size, EGLint * num_config);
-
-char const * eglQueryString(EGLDisplay display, EGLint name);
+// dynlib.c: loader symbol table lookup (table first, then vitaGL).
+void *soloader_lookup_symbol(const char *name, int log_missing);
 
 #define EGL_CONFIG_ID                     0x3028
 #define EGL_HEIGHT                        0x3056

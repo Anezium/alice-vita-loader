@@ -552,26 +552,38 @@ so_default_dynlib default_dynlib[] = {
         #endif
 
 
-        // EGL
-        { "eglBindAPI", (uintptr_t)&eglBindAPI },
-        { "eglChooseConfig", (uintptr_t)&eglChooseConfig },
-        { "eglCreateContext", (uintptr_t)&eglCreateContext },
-        { "eglCreateWindowSurface", (uintptr_t)&eglCreateWindowSurface },
-        { "eglDestroyContext", (uintptr_t)&eglDestroyContext },
-        { "eglDestroySurface", (uintptr_t)&eglDestroySurface },
-        { "eglGetConfigAttrib", (uintptr_t)&eglGetConfigAttrib },
-        { "eglGetConfigs", (uintptr_t)&eglGetConfigs },
-        { "eglGetCurrentContext", (uintptr_t)&eglGetCurrentContext },
-        { "eglGetDisplay", (uintptr_t)&eglGetDisplay },
-        { "eglGetError", (uintptr_t)&eglGetError },
-        { "eglGetProcAddress", (uintptr_t)&eglGetProcAddress },
-        { "eglInitialize", (uintptr_t)&eglInitialize },
-        { "eglMakeCurrent", (uintptr_t)&eglMakeCurrent },
-        { "eglQueryContext", (uintptr_t)&eglQueryContext },
-        { "eglQueryString", (uintptr_t)&eglQueryString },
-        { "eglQuerySurface", (uintptr_t)&eglQuerySurface },
-        { "eglSwapBuffers", (uintptr_t)&eglSwapBuffers },
-        { "eglTerminate", (uintptr_t)&eglTerminate },
+        // EGL (Alice loader: reimpl/egl.c; miniquad resolves all of these with
+        // dlsym and unwraps each result, so none may be missing)
+        { "eglBindAPI", (uintptr_t)&alice_eglBindAPI },
+        { "eglBindTexImage", (uintptr_t)&alice_eglBindTexImage },
+        { "eglChooseConfig", (uintptr_t)&alice_eglChooseConfig },
+        { "eglCopyBuffers", (uintptr_t)&alice_eglCopyBuffers },
+        { "eglCreateContext", (uintptr_t)&alice_eglCreateContext },
+        { "eglCreatePbufferSurface", (uintptr_t)&alice_eglCreatePbufferSurface },
+        { "eglCreatePixmapSurface", (uintptr_t)&alice_eglCreatePixmapSurface },
+        { "eglCreateWindowSurface", (uintptr_t)&alice_eglCreateWindowSurface },
+        { "eglDestroyContext", (uintptr_t)&alice_eglDestroyContext },
+        { "eglDestroySurface", (uintptr_t)&alice_eglDestroySurface },
+        { "eglGetConfigAttrib", (uintptr_t)&alice_eglGetConfigAttrib },
+        { "eglGetConfigs", (uintptr_t)&alice_eglGetConfigs },
+        { "eglGetCurrentContext", (uintptr_t)&alice_eglGetCurrentContext },
+        { "eglGetCurrentDisplay", (uintptr_t)&alice_eglGetCurrentDisplay },
+        { "eglGetCurrentSurface", (uintptr_t)&alice_eglGetCurrentSurface },
+        { "eglGetDisplay", (uintptr_t)&alice_eglGetDisplay },
+        { "eglGetError", (uintptr_t)&alice_eglGetError },
+        { "eglGetProcAddress", (uintptr_t)&alice_eglGetProcAddress },
+        { "eglInitialize", (uintptr_t)&alice_eglInitialize },
+        { "eglMakeCurrent", (uintptr_t)&alice_eglMakeCurrent },
+        { "eglQueryContext", (uintptr_t)&alice_eglQueryContext },
+        { "eglQueryString", (uintptr_t)&alice_eglQueryString },
+        { "eglQuerySurface", (uintptr_t)&alice_eglQuerySurface },
+        { "eglReleaseTexImage", (uintptr_t)&alice_eglReleaseTexImage },
+        { "eglSurfaceAttrib", (uintptr_t)&alice_eglSurfaceAttrib },
+        { "eglSwapBuffers", (uintptr_t)&alice_eglSwapBuffers },
+        { "eglSwapInterval", (uintptr_t)&alice_eglSwapInterval },
+        { "eglTerminate", (uintptr_t)&alice_eglTerminate },
+        { "eglWaitGL", (uintptr_t)&alice_eglWaitGL },
+        { "eglWaitNative", (uintptr_t)&alice_eglWaitNative },
 
 
         // OpenGL
@@ -586,7 +598,7 @@ so_default_dynlib default_dynlib[] = {
         { "glBindRenderbuffer", (uintptr_t)&glBindRenderbuffer },
         { "glBindRenderbufferOES", (uintptr_t)&glBindRenderbuffer },
         { "glBindTexture", (uintptr_t)&glBindTexture },
-        { "glBlendColor", (uintptr_t)&ret0 },
+        { "glBlendColor", (uintptr_t)&alice_glBlendColor }, // was ret0 (silent)
         { "glBlendEquation", (uintptr_t)&glBlendEquation },
         { "glBlendEquationOES", (uintptr_t)&glBlendEquation },
         { "glBlendEquationSeparate", (uintptr_t)&glBlendEquationSeparate },
@@ -633,7 +645,7 @@ so_default_dynlib default_dynlib[] = {
         { "glDepthMask", (uintptr_t)&glDepthMask },
         { "glDepthRangef", (uintptr_t)&glDepthRangef },
         { "glDepthRangex", (uintptr_t)&glDepthRangex },
-        { "glDetachShader", (uintptr_t)&ret0 },
+        { "glDetachShader", (uintptr_t)&alice_glDetachShader }, // was ret0 (silent)
         { "glDisable", (uintptr_t)&glDisable },
         { "glDisableClientState", (uintptr_t)&glDisableClientState },
         { "glDisableVertexAttribArray", (uintptr_t)&glDisableVertexAttribArray },
@@ -776,6 +788,7 @@ so_default_dynlib default_dynlib[] = {
         { "glStencilFunc", (uintptr_t)&glStencilFunc },
         { "glStencilFuncSeparate", (uintptr_t)&glStencilFuncSeparate },
         { "glStencilMask", (uintptr_t)&glStencilMask },
+        { "glStencilMaskSeparate", (uintptr_t)&glStencilMaskSeparate }, // looked up by miniquad
         { "glStencilOp", (uintptr_t)&glStencilOp },
         { "glStencilOpSeparate", (uintptr_t)&glStencilOpSeparate },
         { "glTexCoordPointer", (uintptr_t)&glTexCoordPointer },
@@ -793,7 +806,7 @@ so_default_dynlib default_dynlib[] = {
         { "glTexGenxvOES", (uintptr_t)&ret0 },
         { "glTexImage2D", (uintptr_t)&glTexImage2D },
         { "glTexParameterf", (uintptr_t)&glTexParameterf },
-        { "glTexParameterfv", (uintptr_t)&ret0 },
+        { "glTexParameterfv", (uintptr_t)&alice_glTexParameterfv }, // was ret0 (silent)
         { "glTexParameteri", (uintptr_t)&glTexParameteri },
         { "glTexParameteriv", (uintptr_t)&glTexParameteriv },
         { "glTexParameterx", (uintptr_t)&glTexParameterx },
@@ -1150,8 +1163,8 @@ so_default_dynlib default_dynlib[] = {
 };
 
 /*
- * Symbol lookup shared by dlsym (and usable by eglGetProcAddress):
- * 1. the loader table (so the loader's own hooks win),
+ * Symbol lookup shared by dlsym and eglGetProcAddress (reimpl/egl.c):
+ * 1. the loader table (so the shader hooks and EGL layer win),
  * 2. vitaGL's own table for gl* names (vglGetProcAddress strips EXT/OES/ARB),
  * 3. NULL, so that callers which probe for optional functions see them missing.
  */

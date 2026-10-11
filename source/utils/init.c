@@ -108,7 +108,7 @@ void soloader_init_all() {
     l_notice("SO initialized.");
 
     gl_preload();
-    l_notice("OpenGL preloaded.");
+    l_notice("OpenGL preloaded (vitaGL itself starts in eglInitialize, on the render thread).");
 
     jni_init();
     l_notice("FalsoJNI initialized.");
