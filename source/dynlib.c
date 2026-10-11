@@ -1193,6 +1193,7 @@ void *soloader_lookup_symbol(const char *name, int log_missing) {
 static const char *dl_known_libs[] = {
     "libEGL.so", "libEGL.so.1", "libGLESv1_CM.so", "libGLESv2.so", "libGLESv3.so",
     "libandroid.so", "libOpenSLES.so", "liblog.so", "libc.so", "libm.so", "libdl.so",
+    "liblooking_glass.so",
 };
 #define DL_HANDLE_BASE 0xD1A00000u
 #define DL_HANDLE_SELF ((void *)(DL_HANDLE_BASE + 0xFFu))
