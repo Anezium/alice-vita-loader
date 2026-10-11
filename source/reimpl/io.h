@@ -23,6 +23,8 @@ extern "C" {
 #include <sys/dirent.h>
 #include <sys/syslimits.h>
 #include <sys/fcntl.h>
+#include <stdint.h>
+#include <time.h>
 
 #ifndef PATH_MAX
 #define PATH_MAX 1024
@@ -40,14 +42,22 @@ extern "C" {
 #define DT_WHT 14
 #endif
 
-typedef struct __attribute__((__packed__)) stat64_bionic {
+/*
+ * bionic's 32-bit ARM `struct stat` (== `struct stat64`, libc/include/sys/stat.h)
+ * is NOT packed: under ARM EABI its long long fields are 8-byte aligned, so
+ * st_size is at offset 48 and sizeof is 104. Declaring it packed gives the i386
+ * layout (st_size at 44), so the .so read garbage sizes. newlib's nlink_t and
+ * uid_t are 16-bit, bionic's are 32-bit. Same for struct dirent (d_ino is
+ * 64-bit, d_reclen 16-bit). The offsets are checked at compile time below.
+ */
+typedef struct stat64_bionic {
     unsigned long long st_dev;
     unsigned char __pad0[4];
     unsigned long __st_ino;
     unsigned int st_mode;
-    nlink_t st_nlink;
-    uid_t st_uid;
-    gid_t st_gid;
+    unsigned int st_nlink;
+    unsigned int st_uid;
+    unsigned int st_gid;
     unsigned long long st_rdev;
     unsigned char __pad3[4];
     long long st_size;
@@ -59,13 +69,27 @@ typedef struct __attribute__((__packed__)) stat64_bionic {
     unsigned long long st_ino;
 } stat64_bionic;
 
-typedef struct __attribute__((__packed__)) dirent64_bionic {
-    int16_t d_ino; // 2 bytes // offset 0x0
-    int64_t d_off; // 8 bytes // offset 0x2
-    uint64_t d_reclen; // 8 bytes // 0xA
-    unsigned char d_type; // 1 byte // offset 0x12
-    char d_name[256]; // 256 bytes // offset 0x13
+typedef struct dirent64_bionic {
+    uint64_t d_ino;
+    int64_t d_off;
+    unsigned short d_reclen;
+    unsigned char d_type;
+    char d_name[256];
 } dirent64_bionic;
+
+_Static_assert(sizeof(struct timespec) == 8, "newlib timespec must match bionic arm32");
+_Static_assert(__builtin_offsetof(stat64_bionic, st_mode) == 16, "bionic stat layout");
+_Static_assert(__builtin_offsetof(stat64_bionic, st_rdev) == 32, "bionic stat layout");
+_Static_assert(__builtin_offsetof(stat64_bionic, st_size) == 48, "bionic stat layout");
+_Static_assert(__builtin_offsetof(stat64_bionic, st_blksize) == 56, "bionic stat layout");
+_Static_assert(__builtin_offsetof(stat64_bionic, st_blocks) == 64, "bionic stat layout");
+_Static_assert(__builtin_offsetof(stat64_bionic, st_atim) == 72, "bionic stat layout");
+_Static_assert(__builtin_offsetof(stat64_bionic, st_ino) == 96, "bionic stat layout");
+_Static_assert(sizeof(stat64_bionic) == 104, "bionic stat layout");
+_Static_assert(__builtin_offsetof(dirent64_bionic, d_reclen) == 16, "bionic dirent layout");
+_Static_assert(__builtin_offsetof(dirent64_bionic, d_type) == 18, "bionic dirent layout");
+_Static_assert(__builtin_offsetof(dirent64_bionic, d_name) == 19, "bionic dirent layout");
+_Static_assert(sizeof(dirent64_bionic) == 280, "bionic dirent layout");
 
 int open_soloader(const char * path, int oflag, ...);
 

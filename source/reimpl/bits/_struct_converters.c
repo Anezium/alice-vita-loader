@@ -66,8 +66,14 @@ SC_INLINE
 dirent64_bionic * dirent_newlib_to_bionic(const struct dirent* dirent_newlib) {
     dirent64_bionic * ret = malloc(sizeof(dirent64_bionic));
     strncpy(ret->d_name, dirent_newlib->d_name, sizeof(ret->d_name));
+    ret->d_name[sizeof(ret->d_name) - 1] = 0;
+    // No inode numbers on Vita; give a stable non-zero value (FNV-1a of the
+    // name) instead of uninitialised heap bytes.
+    uint64_t h = 1469598103934665603ULL;
+    for (const char *c = ret->d_name; *c; c++) h = (h ^ (unsigned char)*c) * 1099511628211ULL;
+    ret->d_ino = h ? h : 1;
     ret->d_off = 0;
-    ret->d_reclen = 0;
+    ret->d_reclen = sizeof(dirent64_bionic);
     ret->d_type = SCE_S_ISDIR(dirent_newlib->d_stat.st_mode) ? DT_DIR : DT_REG;
     return ret;
 }
@@ -79,6 +85,7 @@ dirent64_bionic * dirent_newlib_to_bionic(const struct dirent* dirent_newlib) {
  */
 SC_INLINE
 void stat_newlib_to_bionic(const struct stat * src, stat64_bionic * dst) {
+    memset(dst, 0, sizeof(*dst)); // padding and fields newlib does not have
     dst->st_dev = src->st_dev;
     dst->__st_ino = src->st_ino;
     dst->st_ino = src->st_ino;
