@@ -381,10 +381,21 @@ pthread_t pthread_self_soloader()
 }
 
 int pthread_once_soloader(volatile int *once_control, void (*init_routine)(void)) {
+    // A test-and-set followed by an immediate return let the other threads
+    // carry on while the first one was still inside init_routine, and use
+    // state that was not initialised yet (libc++abi / emutls keys).
+    // States: 0 = never run (bionic PTHREAD_ONCE_INIT), 1 = running, 2 = done.
     if (!once_control || !init_routine)
-        return -1;
-    if (__sync_lock_test_and_set(once_control, 1) == 0)
+        return 22; // EINVAL (bionic)
+    int state = __sync_val_compare_and_swap(once_control, 0, 1);
+    if (state == 0) {
         (*init_routine)();
+        __sync_synchronize();
+        *once_control = 2;
+        return 0;
+    }
+    while (*once_control != 2)
+        sceKernelDelayThread(100);
     return 0;
 }
 
